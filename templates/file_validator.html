@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-0">
+                <div class="card-header bg-white border-0 pt-4 px-4">
+                    <h3 class="fw-bold"><i class="bi bi-file-earmark-spreadsheet text-success me-2"></i>XLS Validator</h3>
+                    <p class="text-muted">Pretvorite Excel tabele u Markdown format za AI analizu.</p>
+                </div>
+                
+                <div class="card-body p-4">
+                    <div id="drop-zone" 
+                         class="border border-2 border-dashed d-flex flex-column align-items-center justify-content-center py-5 mb-4"
+                         style="cursor: pointer; transition: background 0.3s; border-color: #dee2e6 !important;">
+                        <i class="bi bi-cloud-arrow-up fs-1 text-primary mb-2"></i>
+                        <p class="mb-1 fw-bold">Prevucite XLS fajl ovde</p>
+                        <p class="text-muted small">ili kliknite da izaberete sa računara</p>
+                        <input type="file" id="fileInput" accept=".xlsx, .xls" class="d-none">
+                    </div>
+
+                    <div id="file-info" class="alert alert-info d-none d-flex align-items-center rounded-0 border-0">
+                        <i class="bi bi-file-check-fill fs-4 me-3"></i>
+                        <div class="flex-grow-1">
+                            <strong id="fileName">fajl.xlsx</strong>
+                            <div id="fileSize" class="small opacity-75">0 KB</div>
+                        </div>
+                        <button type="button" class="btn-close" onclick="resetUpload()"></button>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button id="validateBtn" class="btn btn-primary btn-lg rounded-0 d-none" onclick="processFile()">
+                            <i class="bi bi-magic me-2"></i>Validiraj i Pretvori u MD
+                        </button>
+                    </div>
+
+                    <div id="result-container" class="mt-5 d-none">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0">Markdown Rezultat:</h6>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="copyToClipboard()">
+                                <i class="bi bi-clipboard me-1"></i>Kopiraj
+                            </button>
+                        </div>
+                        <pre id="mdOutput" class="bg-dark text-light p-3 small overflow-auto" style="max-height: 400px;"></pre>
+                    </div>
+
+                    <div id="loader" class="text-center py-4 d-none">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted">Obrađujem podatke...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    #drop-zone.dragover {
+        background-color: #f0f7ff;
+        border-color: #0d6efd !important;
+    }
+    pre {
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        border-radius: 4px;
+        font-family: 'Courier New', Courier, monospace;
+    }
+</style>
+
+<script>
+// Elementi
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('fileInput');
+const validateBtn = document.getElementById('validateBtn');
+const fileInfo = document.getElementById('file-info');
+const resultContainer = document.getElementById('result-container');
+const mdOutput = document.getElementById('mdOutput');
+const loader = document.getElementById('loader');
+
+let lastDroppedFile = null;
+
+// Prevent default drag behaviors
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, e => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, false);
+});
+
+// Highlight drop zone
+['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+});
+
+// Click to upload
+dropZone.onclick = () => fileInput.click();
+
+// Handle selection via click
+fileInput.onchange = (e) => {
+    if (e.target.files.length > 0) {
+        handleFiles(e.target.files);
+    }
+};
+
+// Handle drop
+dropZone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length > 0) {
+        // Magija: Ručno sinhronizujemo fajlove u input da bi processFile video
+        fileInput.files = files; 
+        handleFiles(files);
+    }
+}, false);
+
+function handleFiles(files) {
+    const file = files[0];
+    const fileNameEl = document.getElementById('fileName');
+    const fileSizeEl = document.getElementById('fileSize');
+
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+        // Provera postojanja elemenata pre postavljanja vrednosti
+        if (fileNameEl && fileSizeEl) {
+            fileNameEl.innerText = file.name;
+            fileSizeEl.innerText = (file.size / 1024).toFixed(2) + ' KB';
+        }
+        
+        fileInfo.classList.remove('d-none');
+        validateBtn.classList.remove('d-none');
+        dropZone.classList.add('d-none');
+        resultContainer.classList.add('d-none');
+    } else {
+        alert("Molimo učitajte ispravan XLS ili XLSX fajl.");
+        resetUpload();
+    }
+}
+
+function resetUpload() {
+    fileInput.value = '';
+    fileInfo.classList.add('d-none');
+    validateBtn.classList.add('d-none');
+    dropZone.classList.remove('d-none');
+    resultContainer.classList.add('d-none');
+}
+
+async function processFile() {
+    const file = fileInput.files[0];
+    if (!file) {
+        alert("Niste izabrali fajl.");
+        return;
+    }
+
+    let formData = new FormData();
+    formData.append('file', file);
+
+    loader.classList.remove('d-none');
+    validateBtn.classList.add('d-none'); // Sakrij dugme dok traje proces
+    resultContainer.classList.add('d-none');
+
+    try {
+        const response = await fetch('/validate-xls', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            mdOutput.innerText = data.markdown;
+            resultContainer.classList.remove('d-none');
+        } else {
+            alert("Greška na serveru: " + data.error);
+        }
+    } catch (e) {
+        alert("Doslo je do greške prilikom slanja fajla.");
+        console.error(e);
+    } finally {
+        loader.classList.add('d-none');
+        validateBtn.classList.remove('d-none');
+    }
+}
+
+function copyToClipboard() {
+    const text = mdOutput.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        const btn = event.target.closest('button');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check2"></i> Kopirano!';
+        setTimeout(() => { btn.innerHTML = originalHtml; }, 2000);
+    });
+}
+</script>
+{% endblock %}

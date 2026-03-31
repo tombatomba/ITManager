@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Stilovi da Markdown izgleda profesionalno */
+    .kb-content { background: white; padding: 40px; border-radius: 8px; line-height: 1.6; }
+    .kb-content h1, .kb-content h2 { border-bottom: 1px solid #eaecef; padding-bottom: 0.3em; margin-top: 24px; }
+    .kb-content pre { background-color: #f6f8fa; padding: 16px; border-radius: 6px; overflow: auto; }
+    .kb-content table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    .kb-content table th, .kb-content table td { border: 1px solid #dfe2e5; padding: 6px 13px; }
+    .kb-content table tr:nth-child(even) { background-color: #f6f8fa; }
+</style>
+
+<div class="container mt-4 mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="javascript:history.back()" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to List
+        </a>
+        <div>
+            <span class="badge bg-success">Team Document</span>
+            <small class="text-muted ms-2">ID: {{ doc.ID }}</small>
+        </div>
+    </div>
+
+    <article class="card shadow-sm border-0">
+        <div class="card-header bg-white pt-4 px-4 border-0">
+            <h1 class="display-5 fw-bold text-dark">{{ doc.FileName }}</h1>
+            <p class="lead text-muted">{{ doc.Description }}</p>
+            <hr>
+        </div>
+        <div class="card-body px-4 pb-5">
+            <div class="kb-content">
+                {{ html_content | safe }}
+            </div>
+        </div>
+    </article>
+</div>
+{% endblock %}

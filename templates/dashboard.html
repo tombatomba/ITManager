@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3">Prompt Execution Dashboard</h1>
+        <p class="text-muted">Sequentially execute prompts and render templates</p>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <span>Pending: <strong id="pendingCount">{{ items|length }}</strong></span>
+                    </div>
+                    <div class="col-md-4">
+                        <span>Completed: <strong id="completedCount">0</strong></span>
+                    </div>
+                    <div class="col-md-4">
+                        <span>Errors: <strong id="errorCount">0</strong></span>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <button id="startExecution" class="btn btn-primary me-2">
+                        Start Sequential Execution
+                    </button>
+                    <button id="stopExecution" class="btn btn-secondary me-2" disabled>
+                        Stop
+                    </button>
+                    <button id="resetExecution" class="btn btn-outline-secondary">
+                        Reset All
+                    </button>
+
+                    <div class="form-check form-check-inline ms-3">
+                        <input class="form-check-input" type="checkbox" id="autoProceed" checked>
+                        <label class="form-check-label">Auto-proceed</label>
+                    </div>
+
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="delayBetween" checked>
+                        <label class="form-check-label">Delay 1s</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row" id="itemsContainer">
+{% for item in items %}
+<div class="col-12 mb-3">
+    <div class="card item-card pending" id="item-{{ loop.index0 }}">
+        <div class="card-header d-flex justify-content-between">
+            <input type="text" class="form-control form-control-sm me-2 prompt-input" 
+            value="{{ item.prompt }}" placeholder="Enter prompt">
+ 
+     <!-- Linkovi za funkcionalne argumente i Jinja template -->
+        <a href="#" class="me-2 view-args" data-index="{{ loop.index0 }}">Func args</a>
+        <a href="#" class="me-2 view-template" data-index="{{ loop.index0 }}">Jinja template</a>
+            <span class="badge bg-secondary">{{ item.functionCallJsonDesc.name }}</span>
+        </div>
+
+        <div class="card-body">
+            <div class="row">
+                <div class=" d-none" >
+                    <h6>Function Arguments (AI Output)</h6>
+                    <pre class="json-view d-none" id="args-{{ loop.index0 }}">
+{{ item.functionCallJsonDesc.arguments | tojson(indent=2) }}
+                    </pre>
+                </div>
+
+                <div class=" d-none">
+                    <h6>Jinja Template</h6>
+                    <pre class="json-view">{{ item.JinjaTemplate }}</pre>
+                </div>
+
+                <div class="col-md-4">
+                    <h6>Rendered Output</h6>
+                    <div class="preview-area" id="output-{{ loop.index0 }}">
+                        <em class="text-muted">Waiting for execution...</em>
+                    </div>
+
+                    <button class="btn btn-sm btn-outline-primary mt-2 execute-single"
+                            data-index="{{ loop.index0 }}">
+                        Execute
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    const items = {{ items|tojson|safe }};
+    let currentIndex = 0;
+    let isExecuting = false;
+
+    const qs = s => document.querySelector(s);
+    const qsa = s => document.querySelectorAll(s);
+
+    qs('#startExecution').onclick = () => {
+        isExecuting = true;
+        currentIndex = 0;
+        qs('#startExecution').disabled = true;
+        qs('#stopExecution').disabled = false;
+        runNext();
+    };
+
+    qs('#stopExecution').onclick = () => {
+        isExecuting = false;
+        qs('#startExecution').disabled = false;
+        qs('#stopExecution').disabled = true;
+    };
+
+    qs('#resetExecution').onclick = () => {
+        location.reload();
+    };
+
+    document.addEventListener('click', e => {
+        const btn = e.target.closest('.execute-single');
+        if (!btn) return;
+        executeItem(btn.dataset.index);
+    });
+
+    function runNext() {
+        if (!isExecuting || currentIndex >= items.length) {
+            isExecuting = false;
+            qs('#startExecution').disabled = false;
+            qs('#stopExecution').disabled = true;
+            return;
+        }
+
+        executeItem(currentIndex).then(() => {
+            currentIndex++;
+            if (qs('#autoProceed').checked) {
+                setTimeout(runNext, qs('#delayBetween').checked ? 1000 : 0);
+            }
+        });
+    }
+
+    function executeItem(index) {
+        return fetch('/ai/render_item', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(items[index])
+        })
+        .then(r => r.json())
+        .then(res => {
+            const card = qs(`#item-${index}`);
+            const output = qs(`#output-${index}`);
+            const argsBox = qs(`#args-${index}`);
+
+            if (res.success) {
+                card.classList.remove('pending');
+                card.classList.add('success');
+                output.innerHTML = res.rendered;
+
+                if (res.arguments) {
+                    argsBox.textContent =
+                        JSON.stringify(res.arguments, null, 2);
+                }
+            } else {
+                card.classList.add('error');
+                output.innerHTML = `<div class="text-danger">${res.error}</div>`;
+            }
+
+            updateCounters();
+        });
+    }
+
+    function updateCounters() {
+        qs('#pendingCount').textContent = qsa('.item-card.pending').length;
+        qs('#completedCount').textContent = qsa('.item-card.success').length;
+        qs('#errorCount').textContent = qsa('.item-card.error').length;
+    }
+});
+</script>
+
+{% endblock %}

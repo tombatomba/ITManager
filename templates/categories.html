@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Categories{% endblock %}
+
+{% block content %}
+    
+    
+    <h1>Categories</h1>
+    
+    <!-- Add Category Form -->
+    <form method="POST" class="mb-4">
+        <div class="mb-2">
+            <input type="text" name="name" class="form-control" placeholder="Category Name" required>
+        </div>
+        <div class="mb-2">
+            <input type="text" name="description" class="form-control" placeholder="Description">
+        </div>
+        <button type="submit" class="btn btn-primary">Add Category</button>
+    </form>
+    
+    <!-- Categories Table -->
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th style="display: none;">ID</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat in categories %}
+            <tr>
+                <td style="display: none;">{{ cat.ID }}</td>
+                <td>{{ cat.Name }}</td>
+                <td>{{ cat.Description }}</td>
+                <td>
+                    <!-- Delete -->
+                    <form method="POST" action="{{ url_for('web.delete_category', id=cat.ID) }}" style="display:inline;">
+                        <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                    </form>
+                    <!-- Edit -->
+                    <a href="{{ url_for('web.edit_category', id=cat.ID) }}" class="btn btn-warning btn-sm"><i class="bi bi-pencil-square"></i></a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+</body>
+</html>
+{% endblock %}

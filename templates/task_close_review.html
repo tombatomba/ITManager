@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .rating { display: flex; flex-direction: row-reverse; justify-content: flex-end; }
+    .rating input { display: none; }
+    .rating label { cursor: pointer; font-size: 2rem; color: #ddd; transition: 0.2s; }
+    .rating input:checked ~ label { color: #ffc107; }
+    .rating label:hover, .rating label:hover ~ label { color: #ffdb70; }
+    .chat-preview { max-height: 400px; overflow-y: auto; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
+    .info-label { font-weight: bold; color: #555; font-size: 0.9rem; }
+    .info-value { font-size: 0.95rem; margin-bottom: 0.5rem; }
+</style>
+
+<div class="container mt-4 mb-5">
+    <div class="card shadow">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Archive Review: {{ task.Name }}</h4>
+            <a href="javascript:history.back()" class="btn btn-outline-light btn-sm">Back</a>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-7 border-end">
+                    <h5 class="mb-3 text-primary">Task Specification</h5>
+                    <div class="row mb-4">
+                        <div class="col-6">
+                            <div class="info-label">Assigned To:</div>
+                            <div class="info-value">{{ task.assignee.Name if task.assignee.Name else 'Unassigned' }}</div>
+                            
+                            <div class="info-label">Category:</div>
+                            <div class="info-value"><span class="badge bg-secondary">{{ task.category.Name if task.category else 'N/A' }}</span></div>
+                            
+                            <div class="info-label">Created Date:</div>
+                            <div class="info-value">{{ task.DateLog.strftime('%d.%m.%Y') if task.DateLog else 'N/A' }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="info-label">Activation Date:</div>
+                            <div class="info-value">{{ task.ActivationDate.strftime('%d.%m.%Y') if task.ActivationDate else 'N/A' }}</div>
+                            
+                            <div class="info-label">Target End Date:</div>
+                            <div class="info-value text-danger font-weight-bold">{{ task.EndDate.strftime('%d.%m.%Y') if task.EndDate else 'N/A' }}</div>
+
+                            <div class="info-label">Time Elapsed since Deadline:</div>
+                            <div class="info-value">
+                                {% if days_past > 0 %}
+                                    <span class="text-danger fw-bold">{{ days_past }} days late</span>
+                                {% elif days_past == 0 %}
+                                    <span class="text-success fw-bold">Due today</span>
+                                {% else %}
+                                    <span class="text-info">{{ days_past|abs }} days remaining</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="info-label">Description:</div>
+                        <div class="p-3 bg-light rounded border">{{ task.Description or 'No description provided.' }}</div>
+                    </div>
+                    
+                    <hr>
+                    <h5 class="mb-3 text-primary">Communication History</h5>
+                    <div class="chat-preview mb-3">
+                        {% for c in comments %}
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="badge bg-primary">{{ c.user_name }}</span>
+                                    <small class="text-muted">{{ c.created_at.strftime('%d.%m.%Y %H:%M') if c.created_at else '' }}</small>
+                                </div>
+                                <div class="p-2 bg-white rounded shadow-sm border-start border-3 border-primary">
+                                    {{ c.message }}
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="text-muted italic">No comments found for this task.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="col-md-5">
+                    <form action="{{ url_for('web.confirm_archive', task_id=task.ID) }}" method="POST" class="p-2">
+                        <h5 class="mb-4 text-primary">Final Evaluation</h5>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Actual Closure Date:</label>
+                            <input type="date" name="closed_date" class="form-control" required value="{{ current_date }}">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label d-block fw-bold">Performance Rating (1-5):</label>
+                            <div class="rating">
+                                <input type="radio" name="rating" value="5" id="5"><label for="5">★</label>
+                                <input type="radio" name="rating" value="4" id="4"><label for="4">★</label>
+                                <input type="radio" name="rating" value="3" id="3" checked><label for="3">★</label>
+                                <input type="radio" name="rating" value="2" id="2"><label for="2">★</label>
+                                <input type="radio" name="rating" value="1" id="1"><label for="1">★</label>
+                            </div>
+                            <small class="text-muted">Rate the quality and punctuality of the work.</small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Manager's Feedback (Internal Note):</label>
+                            <textarea name="closing_note" class="form-control" rows="5" required placeholder="Provide final feedback regarding the execution of this task..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg shadow" onclick="return confirm('Are you sure you want to archive this task? This action is permanent.')">
+                                <i class="bi bi-archive-fill"></i> Archive Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

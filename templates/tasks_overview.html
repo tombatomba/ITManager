@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container mt-4" 
+    <a class="btn btn-link" data-bs-toggle="collapse" href="#myContainer">
+        <i class="bi bi-chevron-down"></i><b>New task</b> Show/Hide
+    </a>
+</div>
+
+<div class="container mt-4 collapse hide bg-light" id="myContainer"  >
+    <h2>Create New Task</h2>
+    <form method="POST" action="{{ url_for('web.new_task') }}">
+
+        <!-- Task Name -->
+        <div class="mb-3">
+            <label class="form-label">Task Name</label>
+            <input type="text" name="TaskName" class="form-control" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <input type="textarea" name="Description" class="form-control" >
+        </div>
+
+        <!-- Category Dropdown -->
+        <div class="mb-3">
+            <label class="form-label">Category</label>
+            <select name="TaskCategory" class="form-select" required>
+                <option value="">Select category...</option>
+                {% for c in categories %}
+                    <option value="{{ c.ID }}">{{ c.Name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Assigned To Dropdown -->
+        <div class="mb-3">
+            <label class="form-label">Assigned To</label>
+            <select name="AssignedTo" class="form-select" required>
+                <option value="-1">-- Unassigned (None) --</option>
+                {% for u in users %}
+                    <option value="{{ u.ID }}">{{ u.Name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Dates -->
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Created Date</label>
+                <input type="date" name="CreatedDate" class="form-control" disabled value="{{ today }}">
+            </div>
+
+            <div class="col-md-4 mb-3">
+                <label class="form-label">Activation Date</label>
+                <input type="date" name="ActivationDate" class="form-control" value="{{ today }}">
+            </div>
+
+          <div class="col-md-4 mb-3">
+                <label class="form-label">End Date</label>
+                <input type="date" name="EndDate" class="form-control" value="{{ nextWeek }}">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success">
+            <i class="bi bi-plus-circle"></i> Create Task
+        </button>
+        
+    </form>
+    <br/>
+</div>
+
+
+<div class="container mt-4">
+    <h2 class="mb-3">Filter tasks</h2>
+
+    <!-- FILTER PANEL -->
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-2">
+            <input type="text" name="name" class="form-control" placeholder="Task Name contains"
+                value="{{ filters.get('name', '') }}">
+        </div>
+
+        <div class="col-md-2">
+            <select name="category" class="form-select">
+                <option value="">All Categories</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.Name }}" {% if filters.get('category') == cat.Name %}selected{% endif %}>
+                        {{ cat.Name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="col-md-2">
+            <select name="assigned" class="form-select">
+                <option value="">All</option>
+                <option value="-1" {% if filters.get('assigned') == '-1' %}selected{% endif %}>
+                    -- Unassigned (None) --
+                </option>
+                {% for person in users %}
+                    <option value="{{ person.Name }}" {% if filters.get('assigned') == person.Name %}selected{% endif %}>
+                        {{ person.Name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-2">
+            <input type="number" name="created_month" class="form-control" placeholder="Created Month" min="1" max="12"
+                value="{{ filters.get('created_month', '') }}">
+        </div>
+
+        <div class="col-md-2">
+            <input type="number" name="end_month" class="form-control" placeholder="End Month" min="1" max="12"
+                value="{{ filters.get('end_month', '') }}">
+        </div>
+        <div class="col-md-2">
+            <input type="number" name="activation_month" class="form-control" placeholder="Activation Month" min="1" max="12"
+                value="{{ filters.get('activation_month', '') }}">
+        </div>
+
+        <div class="col-md-2">
+            <button class="btn btn-primary w-100" type="submit">Filter</button>
+        </div>
+        <div class="col-md-2">
+            <a href="{{ url_for('web.tasks_overview') }}" class="btn btn-outline-secondary w-100">
+                Clear 
+            </a>
+        </div>
+        
+    </form>
+
+    <!-- TASKS TABLE -->
+    <table id="tasksTable" class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th onclick="sortTable(0)">Task ID</th>
+                <th onclick="sortTable(1)">Task Name</th>
+                <th onclick="sortTable(2)">Category</th>
+                <th onclick="sortTable(3)">Created Date</th>
+                <th onclick="sortTable(4)">End Date</th>
+                <th onclick="sortTable(5)">Activtion Date</th>
+                <th onclick="sortTable(6)">Assigned To</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tasks %}
+            <tr>
+                <td>{{ t.TaskID }}</td>
+                <td>{{ t.TaskName }}</td>
+                <td>{{ t.TaskCategory }}</td>
+                <td>{{ t.CreatedDate }}</td>
+                <td>{{ t.EndDate }}</td>
+                <td>{{ t.ActivationDate }}</td>
+                <td>{{ t.AssignedTo }}</td>
+                <td>
+                    <!-- Delete -->
+                    <form method="POST" action="{{ url_for('web.delete_task', task_id=t.TaskID) }}" style="display:inline;">
+                        <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-trash"></i></button>
+                    </form>
+                    <!-- Edit -->
+                    <a href="{{ url_for('web.edit_task', task_id=t.TaskID) }}" class="btn btn-warning btn-sm"><i class="bi bi-pencil-square"></i></a>
+                    <!-- Chat -->
+                    <a href="{{ url_for('web.task_chat', task_id=t.TaskID) }}" class="btn btn-success btn-sm"><i class="bi bi-chat"></i></a>
+
+                </td>
+
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+let sortDirection = true; // true = asc, false = desc
+
+function sortTable(columnIndex) {
+    const table = document.getElementById("tasksTable");
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+
+    rows.sort((a, b) => {
+        let A = a.children[columnIndex].innerText.trim();
+        let B = b.children[columnIndex].innerText.trim();
+
+        // Ako je broj
+        if (!isNaN(A) && !isNaN(B)) {
+            A = Number(A);
+            B = Number(B);
+        }
+
+        // Ako je datum
+        if (A.match(/\d{4}-\d{2}-\d{2}/) && B.match(/\d{4}-\d{2}-\d{2}/)) {
+            return sortDirection
+                ? new Date(A) - new Date(B)
+                : new Date(B) - new Date(A);
+        }
+
+        return sortDirection ? A.localeCompare(B) : B.localeCompare(A);
+    });
+
+    rows.forEach(row => tbody.appendChild(row));
+    sortDirection = !sortDirection;
+}
+</script>
+{% endblock %}

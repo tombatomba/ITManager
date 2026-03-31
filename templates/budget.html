@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Budget{% endblock %}
+
+
+
+
+{% block content %}
+
+<script src="https://bossanova.uk/jspreadsheet/v5/jspreadsheet.js"></script>
+<script src="https://jsuites.net/v5/jsuites.js"></script>
+<link rel="stylesheet" href="https://jsuites.net/v5/jsuites.css" type="text/css" />
+<link rel="stylesheet" href="https://bossanova.uk/jspreadsheet/v5/jspreadsheet.css" type="text/css" />
+
+    <h1>Budget</h1>
+    
+    <button class="btn btn-success" onclick="saveBudget()">Save Changes</button>
+
+<div id="spreadsheet" class="pt-3"></div>
+<!-- TOTAL kartica -->
+<div class="col-12 mb-4">
+    <div class="card shadow-sm border-0 rounded-3 bg-light">
+        <h5 class="card-header text-dark">TOTAL</h5>
+        <div class="card-body">
+            <p><b>Budget:</b> {{ total_item.budget }}</p>
+            <p><b>Spent:</b> {{ total_item.spent }}</p>
+            <p><b>Remaining:</b> {{ total_item.remaining }}</p>
+            <div class="progress">
+                <div class="progress-bar bg-info" style="width: {{ total_item.used_percent }}%">
+                    {{ total_item.used_percent }}%
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- DETALJI -->
+<div class="row">
+    {% for item in items %}
+        {% include "_budget_card.html" %}
+    {% endfor %}
+</div>
+
+
+
+
+
+<script>
+    const config = {{ config_json|safe }};
+    let table = jspreadsheet(document.getElementById('spreadsheet'), {
+        worksheets: [{
+            data:config.data,
+            columns: config.columns,
+            tableOverflow: false,  // Omogući scroll
+            tableWidth: "100%",
+            tableHeight: "100%"
+        }]
+    });
+
+    function saveBudget() {
+    // 1. Uzmi samo redove iz tabele
+    const currentData = table[0].getData();
+    
+    // 2. Upakuj ih u isti format koji get_budget_data očekuje
+    // Koristimo 'config.columns' koje smo dobili pri učitavanju stranice
+    const payload = {
+        data: currentData,
+        columns: config.columns 
+    };
+
+    fetch("{{ url_for('web.save_budget') }}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload) // Sada šaljemo kompletan objekat
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            alert('Budget saved successfully!');
+            location.reload(); 
+        }
+    })
+    .catch(error => alert('Save failed!'));
+}
+    </script>
+
+{%endblock%}

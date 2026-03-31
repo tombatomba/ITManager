@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Categories{% endblock %}
+
+{% block content %}
+
+<style>
+    .heat-0 { background-color: #ffffff; }
+    
+    .heat-1 { background:var(--bs-gray-100) !important; }
+    
+    .heat-2 { background:var(--bs-gray-200) !important; }
+    .heat-3 { background:var(--bs-gray-300) !important; } 
+    
+    .heat-4 { background:var(--bs-gray-400) !important; }
+    .heat-5 { background:var(--bs-gray-500) !important; } 
+    .table-compact td,
+    .table-compact th {
+        padding: 1px 1px !important;
+        font-size: calc(1px + 0.5vw) !important;
+    }
+
+    .small-header th {
+    font-size: 8px !important;
+    
+    }
+
+    .table-compact {
+        line-height: 1;
+    }
+
+</style>
+    
+<title>Absence Matrix</title>
+
+<div class="mb-3">
+    <a href="{{ url_for('web.absence_matrix', year=selected_year-1) }}" class="btn btn-sm btn-outline-primary">&laquo; Previous Year</a>
+    <span class="mx-3 fw-bold">Year: {{ selected_year }}</span>
+    <a href="{{ url_for('web.absence_matrix', year=selected_year+1) }}" class="btn btn-sm btn-outline-primary">Next Year &raquo;</a>
+    <a href="{{ url_for('web.calendar_view') }}" class="btn btn-sm btn-secondary">Calendar view</a>
+</div>
+
+
+<div class="vacations">
+    
+    <div class="d-flex align-items-center gap-2">
+        <h3>Employees Absence Calendar</h3>
+       
+    </div>
+   
+   
+<div class="table-responsive">
+    <table class="table table-sm table-bordered table-compact align-middle">
+        <thead class="table-light small-header">
+            <tr>
+                <th>Employee</th>
+                <th>Total</th>
+                <th>Remain</th>
+                {% for w in range(1, 53) %}
+                    <th>W{{ w }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for emp, weeks in matrix.items() %}
+                <tr>                
+                    <td class="fw-bold">{{ emp[0] }}</td>
+                    <td class="fw-bold">{{ emp[1] }}</td>
+                    <td class="fw-bold"> {{ emp_remain[emp[0]] }} </td>
+                    {% for w in range(1, 53) %}
+                        {% set val = weeks[w] %}
+                        {% set heat = 'heat-' ~ (val if val <= 5 else 5) %}
+                        <td class="{{ heat }}">
+                            {{ val if val > 0 else '' }}
+                        </td>
+                    {% endfor %}
+
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+</div>
+
+<div class="homeOffice">
+    <p></p>
+    <br/>
+
+    <div class="d-flex align-items-center gap-2">
+        <h3>Employees Home office Calendar</h3>
+    </div>
+   
+<div class="table-responsive">
+    <table class="table table-sm table-bordered table-compact align-middle">
+        <thead class="table-light small-header">
+            <tr>
+                <th>Employee</th>
+                <th>Total</th>
+                <th>Remain</th>
+                {% for w in range(1, 53) %}
+                    <th>W{{ w }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for emp, weeks in matrix2.items() %}
+                <tr>                
+                    <td class="fw-bold">{{ emp }}</td>
+                    <td class="fw-bold"></td>
+                    <td class="fw-bold"></td>                   
+                    {% for w in range(1, 53) %}
+                        {% set val = weeks[w] %}
+                        {% set heat = 'heat-' ~ (val if val <= 5 else 5) %}
+                        <td class="{{ heat }}">
+                            {{ val if val > 0 else '' }}
+                        </td>
+                    {% endfor %}
+
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</div>
+
+</div>
+
+{% endblock %}

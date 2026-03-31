@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block title %}Kanban Board{% endblock %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+<style>
+    .kanban-board {
+        display: flex;
+        width: 100%;
+        overflow-x: auto;
+        padding: 20px 0;
+    }
+    .kanban-list {
+        min-width: 320px;
+        flex: 1;
+        margin-right: 20px;
+        background-color: #ebecf0;
+        border-radius: 8px;
+        padding: 15px;
+        display: flex;
+        flex-direction: column;
+        max-height: 80vh;
+    }
+    .kanban-list h3 {
+        font-size: 1.1rem;
+        font-weight: bold;
+        padding-bottom: 10px;
+        color: #172b4d;
+    }
+    .card-container {
+        flex-grow: 1;
+        min-height: 100px;
+        overflow-y: auto;
+    }
+    .kanban-card {
+        background-color: white;
+        border-radius: 5px;
+        padding: 12px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        cursor: grab;
+        border-left: 4px solid #e64343; /* Tvoja boja sa edit forme */
+    }
+    .kanban-card:active {
+        cursor: grabbing;
+    }
+    .kanban-card h5 {
+        font-size: 0.95rem;
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+    .kanban-card p {
+        font-size: 0.85rem;
+        color: #5e6c84;
+        margin-bottom: 0;
+    }
+    .sortable-ghost {
+        opacity: 0.4;
+        background-color: #cbd2d9;
+    }
+</style>
+
+<div class="container-fluid mt-4">
+    <div class="row align-items-end mb-4">
+        <div class="col-md-4">
+            <label for="member-select" class="form-label fw-bold text-muted small">Filter by Team Member:</label>
+            <select id="member-select" class="form-select shadow-sm">
+                <option value="-1" {% if selected_member_id == "-1" %}selected{% endif %}>-- All Team Members --</option>                
+                {% for u in users %}
+                    <option value="{{ u.ID }}" {% if selected_member_id == u.ID|string %}selected{% endif %}>
+                        {{ u.Name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="col-md-8 text-end">
+  
+        </div>
+    </div>
+
+    <hr>
+
+    <h2 class="h4 mb-4">Project: <span class="text-primary">{{ board.name }}</span></h2>
+
+    <div class="kanban-board">
+        {% for list in board.lists %}
+        <div class="kanban-list">
+            <h3 class="border-bottom pb-2">{{ list.name }}</h3>
+            <div class="card-container" id="{{ list.id }}" data-status="{{ list.name }}">
+                {% for card in list.cards %}
+                <div class="kanban-card shadow-sm" data-id="{{ card.id }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="mb-1 text-dark">{{ card.title }}</h5>
+                        <div class="d-flex gap-1">
+                            {% if list.name == "Done" %}
+                                <a href="{{ url_for('web.task_close_review', task_id=card.real_id) }}" 
+                                class="btn btn-sm btn-outline-danger py-0" 
+                                title="Review & Archive">
+                                    <i class="bi bi-archive"></i>
+                                </a>
+                            {% endif %}
+                            <a href="{{ url_for('web.task_chat', task_id=card.real_id) }}" class="btn btn-sm btn-outline-primary py-0" title="Comments">
+                                <i class="bi bi-chat-dots"></i>
+                            </a>                        
+                        </div>
+                    </div>
+                    
+                    <p class="text-muted small mb-2">{{ card.description[:100] }}{% if card.description|length > 100 %}...{% endif %}</p>
+                    
+                    <div class="mt-2 d-flex flex-wrap gap-1">
+                        <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
+                            <i class="bi bi-play-circle text-success"></i> {{ card.activation_date }}
+                        </span>
+                        <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
+                            <i class="bi bi-calendar-x text-danger"></i> {{ card.end_date }}
+                        </span>
+                        <span class="badge bg-light text-dark border" style="font-size: 0.7rem;">
+                            <i class="bi bi-person"></i> {{ card.assigned_name }}
+                        </span>
+                    </div>     
+                    <div class="mt-2 d-flex flex-wrap gap-1">
+                        {% if list.name != "Done" and card.days_left is not none %}
+                                {% if card.days_left < 0 %}
+                                    <span class="badge bg-danger shadow-sm">
+                                        <i class="bi bi-exclamation-triangle"></i> Delayed: {{ card.days_left|abs }} days
+                                    </span>
+                                {% elif card.days_left == 0 %}
+                                    <span class="badge bg-warning text-dark shadow-sm">
+                                        <i class="bi bi-clock"></i> Due Today
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-info text-dark shadow-sm">
+                                        <i class="bi bi-hourglass-split"></i> {{ card.days_left }} days left
+                                    </span>
+                                {% endif %}
+                        {% endif %}
+                    </div>         
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+ <div class="modal fade" id="myModal1" tabindex="-1">
+    <div class="modal-dialog">
+        <form action="{{ url_for('web.new_board') }}" method="POST">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create New Project</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="board_name" class="form-label">Project Name</label>
+                        <input type="text" class="form-control" placeholder="Enter project name" required id="board_name" name="board_name">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Create Project</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div> 
+
+<script>
+    // 1. FILTRIRANJE (Osvežavanje stranice na promenu selekta)
+    document.getElementById('member-select').addEventListener('change', function() {
+        const val = this.value;
+        // Ako je izabrano "Unassigned" (prazno), šaljemo prazan string, inače ID ili -1
+        window.location.href = '/kanban?member_id=' + val;
+    });
+
+    // 2. SORTABLE INICIJALIZACIJA
+    document.querySelectorAll('.card-container').forEach(function(container) {
+        new Sortable(container, {
+            group: 'kanban',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            onEnd: function(evt) {
+                // evt.to je kontejner u koji je kartica ubačena
+                const newStatus = evt.to.getAttribute('data-status');
+                const cardId = evt.item.getAttribute('data-id');
+                
+                console.log(`Card ${cardId} moved to ${newStatus}`);
+                
+                // Pozivamo server da sačuva promenu
+                updateTaskStatus(cardId, newStatus);
+            }
+        });
+    });
+
+    // 3. SLANJE PROMENE NA SERVER (Update Status)
+    function updateTaskStatus(cardId, newStatus) {
+        // cardId obično ima prefiks 'card', pa ga čistimo ako treba
+        const cleanId = cardId.replace('card', '');
+
+        fetch('/update_task_status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                task_id: cleanId,
+                status: newStatus
+            })
+        })
+        .then(response => response.json())
+        .then(result => {
+            console.log('Success:', result);
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to save change to database.');
+        });
+    }
+
+    // Modal autofocus
+    const myModal = document.getElementById('myModal1');
+    myModal.addEventListener('shown.bs.modal', () => {
+        document.getElementById('board_name').focus();
+    });
+</script>
+
+{% endblock %}

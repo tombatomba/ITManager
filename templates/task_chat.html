@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* Glavni omotač koji forsira punu širinu */
+    .chat-main-wrapper {
+        width: 100%;
+        padding: 10px 0;
+    }
+
+    .chat-container {
+        width: 100%;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+        display: flex;
+        flex-direction: column;
+        height: 78vh; /* Visina prilagođena ekranu */
+        overflow: hidden;
+    }
+
+    .chat-header {
+        background: #075E54;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+        color: white;
+        padding: 12px 20px;
+        flex-shrink: 0;
+    }
+
+    .chat-box {
+        flex-grow: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background: #e5ddd5; /* Klasična WhatsApp boja pozadine */
+        display: flex;
+        flex-direction: column;
+    }
+
+    .message-row {
+        display: flex;
+        margin-bottom: 12px;
+        width: 100%;
+    }
+
+    .message-left { justify-content: flex-start; }
+    .message-right { justify-content: flex-end; }
+
+    .bubble {
+        max-width: 75%;
+        padding: 8px 12px;
+        border-radius: 12px;
+        position: relative;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        line-height: 1.4;
+    }
+
+    .bubble-left {
+        background: #ffffff;
+        color: #000;
+        border-top-left-radius: 2px;
+    }
+
+    .bubble-right {
+        background: #dcf8c6;
+        color: #000;
+        border-top-right-radius: 2px;
+    }
+
+    .user-name {
+        font-size: 0.75rem;
+        font-weight: bold;
+        color: #2b6cb0;
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .timestamp {
+        font-size: 0.65rem;
+        color: #777;
+        margin-top: 4px;
+        text-align: right;
+    }
+
+    .chat-input-area {
+        background: #f0f0f0;
+        padding: 15px;
+        border-top: 1px solid #ddd;
+        flex-shrink: 0;
+    }
+
+    /* Dugme za brisanje */
+    .delete-btn {
+        background: none; border: none; color: #999; cursor: pointer;
+        padding: 0 5px; font-size: 0.9rem; visibility: hidden;
+        transition: color 0.2s;
+    }
+    .bubble:hover .delete-btn { visibility: visible; }
+    .delete-btn:hover { color: #cc0000; }
+
+    .deleted-text {
+    color: #d9534f; /* Diskretna crvena boja */
+    font-style: italic;
+    font-size: 0.9rem;
+    display: block;
+    padding: 2px 0;
+    }
+
+    /* Opciono: Smanjujemo providnost celog balončića ako je poruka obrisana */
+    .bubble:has(.deleted-text) {
+        opacity: 0.8;
+    }
+
+
+    /* Uklanjamo outline sa inputa za lepši izgled */
+    .form-control:focus {
+        box-shadow: none;
+        border-color: #075E54;
+    }
+</style>
+
+<div class="chat-main-wrapper mt-3">
+    <div class="chat-container">
+        <div class="chat-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">{{ data.TaskName }}</h5>
+                <small style="opacity: 0.9;">Deadline: {{ data.DueDate }}</small>
+            </div>
+            <a href="javascript:history.back()" class="btn btn-sm btn-outline-light">Back</a>
+        </div>
+
+        <div class="chat-box" id="chatBox">
+            {% for c in data.Comments %}
+                <div class="message-row {{ 'message-right' if c.IsMine else 'message-left' }}">
+                    <div class="bubble {{ 'bubble-right' if c.IsMine else 'bubble-left' }}">
+                        {% if not c.IsMine %}                          
+                            <span class="user-name">{{ c.UserName }}</span>                            
+                        {% else %}
+                            {% if '#Deleted at:' not in c.Message  %}
+                                <form action="{{ url_for('web.delete_comment', comment_id=c.CommentID) }}" method="POST" onsubmit="">
+                                    <button type="submit" class="delete-btn" title="Obriši poruku">Del</button>
+                                </form>
+                                {% endif %}
+                        {% endif %}
+                        
+                        <div class="message-content">
+                            {% if '#Deleted at:' in c.Message %}                            
+                            <span class="deleted-text">
+                                {{ c.Message.replace('#', '') }}
+                            </span>
+                            {% else %}
+                                {{ c.Message }}
+                            {% endif %}
+                        </div>
+                        
+                        <div class="timestamp">{{ c.CreatedAt }}</div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="chat-input-area">
+            <form id="commentForm" method="POST" action="{{ url_for('web.add_comment', task_id=data.TaskID) }}" class="d-flex">
+                <input type="text" 
+                       id="messageInput"
+                       name="message" 
+                       class="form-control" 
+                       placeholder="Pritisnite Enter za slanje..." 
+                       required 
+                       autocomplete="off"
+                       autofocus>
+                <button type="submit" class="btn btn-success ms-2 px-4">Send</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Automatsko skrolovanje na dno
+    const chatBox = document.getElementById('chatBox');
+    function scrollToBottom() {
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+    scrollToBottom();
+
+    // 2. Slanje na Enter taster
+    const messageInput = document.getElementById('messageInput');
+    const commentForm = document.getElementById('commentForm');
+
+    messageInput.addEventListener('keydown', function(e) {
+        // Ako je pritisnut Enter bez Shift tastera
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); // Spreči novi red u inputu
+            if (messageInput.value.trim() !== "") {
+                commentForm.submit(); // Pošalji formu
+            }
+        }
+    });
+</script>
+{% endblock %}

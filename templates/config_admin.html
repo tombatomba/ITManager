@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-lg border-0">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-light"><i class="bi bi-code-slash me-2 text-info"></i>Config Data Manager</h5>
+            <div>
+                <span class="badge bg-secondary me-2" id="statusBadge">Ready</span>
+                <button class="btn btn-sm btn-outline-info" onclick="beautifyCode()">Beautify</button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="p-3 bg-light border-bottom">
+                <div class="row align-items-center">
+                    <div class="col-md-4">
+                        <select class="form-select form-select-sm" id="targetLevel" onchange="loadConfig()">
+                            <option value="company">🏢 Company Defaults</option>
+                            <option value="team" selected>👥 Team Overrides</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8 text-end small text-muted">
+                        <i class="bi bi-info-circle"></i> JSON format is required for all AI configurations.
+                    </div>
+                </div>
+            </div>
+
+            <div id="editor" style="height: 450px; width: 100%;"></div>
+        </div>
+        <div class="card-footer bg-white text-end">
+            <button type="button" class="btn btn-primary px-4" id="saveBtn" onclick="saveConfig()">
+                <i class="bi bi-save2 me-2"></i>Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.1/ace.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.1/mode-json.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.23.1/theme-monokai.js"></script>
+
+<script>
+    // Inicijalizacija editora
+    var editor = ace.edit("editor");
+    editor.setTheme("ace/theme/monokai");
+    editor.session.setMode("ace/mode/json");
+    editor.setShowPrintMargin(false);
+
+    var initialContent = {{ initial_config|tojson|safe }}; 
+    // tojson filter će osigurati da Flask pošalje ispravan string
+    editor.setValue(typeof initialContent === 'string' ? initialContent : JSON.stringify(initialContent, null, 4), -1);
+
+    editor.setOptions({
+        fontSize: "14px",
+        enableBasicAutocompletion: true,
+        useWorker: true
+    });
+
+    // 2. Funkcija koja se poziva na promenu padajuće liste
+    async function loadConfig() {
+    const level = document.getElementById('targetLevel').value;
+    const badge = document.getElementById('statusBadge');
+    badge.innerText = 'Loading...';
+
+    try {
+        const response = await fetch(`/get-config-json?level=${level}`);
+        const data = await response.json();
+        
+        let content = "";
+
+        // PROVERA: Da li je data.config već string ili objekat?
+        if (typeof data.config === 'object' && data.config !== null) {
+            // Ako je server poslao čist JSON objekat, pretvaramo ga u ulepšan string
+            content = JSON.stringify(data.config, null, 4);
+        } else if (typeof data.config === 'string') {
+            try {
+                // Ako je string, pokušavamo da ga ulepšamo (beautify)
+                const parsed = JSON.parse(data.config);
+                content = JSON.stringify(parsed, null, 4);
+            } catch (e) {
+                // Ako nije validan JSON, bar ga prikaži kao sirov string
+                content = data.config;
+            }
+        } else {
+            // Fallback na prazan objekat ako je config null ili undefined
+            content = "{\n    \n}";
+        }
+
+        // KLJUČNA LINIJA: Osiguravamo da je content STRING
+        editor.setValue(String(content), -1); 
+        
+        badge.innerText = 'Synced';
+        badge.className = 'badge bg-success me-2';
+    } catch (e) {
+        console.error("Error loading config:", e);
+        badge.innerText = 'Error';
+        badge.className = 'badge bg-danger me-2';
+        }
+    }
+
+    function beautifyCode() {
+        try {
+            const val = JSON.parse(editor.getValue());
+            editor.setValue(JSON.stringify(val, null, 4), -1);
+        } catch (e) {
+            alert("Cannot beautify invalid JSON.");
+        }
+    }
+
+    async function saveConfig() {
+        const annotations = editor.getSession().getAnnotations();
+        const hasErrors = annotations.some(a => a.type === 'error');
+        
+        if (hasErrors) {
+            alert("Please fix the JSON errors before saving.");
+            return;
+        }
+
+        const level = document.getElementById('targetLevel').value;
+        const configData = editor.getValue();
+        const badge = document.getElementById('statusBadge');
+
+        try {
+            const response = await fetch('/save-config-json', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    level: level,
+                    configData: configData
+                })
+            });
+
+            if (response.ok) {
+                alert("✅ Config saved!");
+                badge.innerText = 'Saved';
+                badge.className = 'badge bg-success me-2';
+            }
+        } catch (e) {
+            alert("❌ Save failed.");
+        }
+    }
+</script>
+
+<style>
+    #editor {
+        border-radius: 0;
+    }
+    .ace_gutter {
+        background-color: #23272e !important;
+    }
+</style>
+{% endblock %}

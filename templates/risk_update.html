@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div> 
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas fa-shield-alt text-primary me-2"></i>
+                {% if is_new %}Register New Risk{% else %}Manage Risk: {{ risk.Title }}{% endif %}
+            </h1>            
+        </div>
+        <a href="{{ url_for('web.risk_timeline',risk_id = risk.RiskID) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> View timeline
+        </a>
+        <a href="{{ url_for('web.risk_list') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>        
+    </div>
+
+    <form action="{% if is_new %}{{ url_for('web.new_risk') }}{% else %}{{ url_for('web.update_risk', risk_id=risk.RiskID) }}{% endif %}" method="POST">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-light">
+                        <h6 class="m-0 font-weight-bold text-primary">General Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="Title" class="form-label fw-bold">Risk Title</label>
+                            <input type="text" class="form-control form-control-lg" id="Title" name="Title" 
+                                   value="{{ risk.Title if risk else '' }}" placeholder="e.g., Database Connection Timeout" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="RiskDescription" class="form-label fw-bold">Detailed Description</label>
+                            <textarea class="form-control" id="RiskDescription" name="RiskDescription" rows="4" 
+                                      placeholder="Describe the context and potential consequences...">{{ risk.RiskDescription if risk else '' }}</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="Category" class="form-label fw-bold">Category</label>
+                                <select class="form-select" id="Category" name="Category">
+                                    <option value="Technical" {% if risk and risk.Category == 'Technical' %}selected{% endif %}>Technical</option>
+                                    <option value="Financial" {% if risk and risk.Category == 'Financial' %}selected{% endif %}>Financial</option>
+                                    <option value="Operational" {% if risk and risk.Category == 'Operational' %}selected{% endif %}>Operational</option>
+                                    <option value="Resource" {% if risk and risk.Category == 'Resource' %}selected{% endif %}>Human Resources</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="RiskStatus" class="form-label fw-bold">Status</label>
+                                <select class="form-select" id="RiskStatus" name="RiskStatus">
+                                    <option value="Identified" {% if risk and risk.RiskStatus == 'Identified' %}selected{% endif %}>Identified</option>
+                                    <option value="In Progress" {% if risk and risk.RiskStatus == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Mitigated" {% if risk and risk.RiskStatus == 'Mitigated' %}selected{% endif %}>Mitigated</option>
+                                    <option value="Closed" {% if risk and risk.RiskStatus == 'Closed' %}selected{% endif %}>Closed</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow mb-4 border-left-success">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-success">Mitigation & Contingency</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="MitigationStrategy" class="form-label fw-bold text-success">Mitigation Strategy</label>
+                            <textarea class="form-control" id="MitigationStrategy" name="MitigationStrategy" rows="3" 
+                                      placeholder="What are we doing to prevent this?">{{ risk.MitigationStrategy if risk else '' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="ContingencyPlan" class="form-label fw-bold text-danger">Contingency Plan (Plan B)</label>
+                            <textarea class="form-control" id="ContingencyPlan" name="ContingencyPlan" rows="3" 
+                                      placeholder="What if it happens anyway?">{{ risk.ContingencyPlan if risk else '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 bg-dark text-white text-center">
+                        <h6 class="m-0 font-weight-bold">Risk Assessment</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <label class="form-label d-flex justify-content-between">
+                                Probability (1-5) <span id="probVal" class="badge bg-primary fs-6">{{ risk.Probability if risk else 1 }}</span>
+                            </label>
+                            <input type="range" class="form-range" min="1" max="5" id="Probability" name="Probability" 
+                                   value="{{ risk.Probability if risk else 1 }}" oninput="calculateScore()">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label d-flex justify-content-between">
+                                Impact (1-5) <span id="impVal" class="badge bg-primary fs-6">{{ risk.Impact if risk else 1 }}</span>
+                            </label>
+                            <input type="range" class="form-range" min="1" max="5" id="Impact" name="Impact" 
+                                   value="{{ risk.Impact if risk else 1 }}" oninput="calculateScore()">
+                        </div>
+                        <div class="text-center p-3 rounded bg-light border">
+                            <small class="text-uppercase text-muted d-block">Calculated Risk Score</small>
+                            <h2 class="mb-0 fw-bold" id="scoreDisplay">{{ risk.RiskScore if risk else 1 }}</h2>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow mb-4 small">
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <label class="fw-bold">Due Date:</label>
+                            <input type="date" class="form-control form-control-sm" name="DueDate" 
+                                   value="{{ risk.DueDate.strftime('%Y-%m-%d') if risk and risk.DueDate else '' }}">
+                        </div>
+                        
+                        <hr>
+                    
+                        <div class="mb-3">
+                            <label for="Comment" class="form-label fw-bold text-muted">Comment:</label>
+                            <textarea class="form-control form-control-sm" id="Comment" name="Comment" rows="2" 
+                                      placeholder="Enter comment about risk change"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow mb-4 border-left-info bg-light">
+                    <div class="card-body">
+                        <h6 class="font-weight-bold text-info"><i class="fas fa-robot"></i> ELPatron AI Insight</h6>
+                        <p class="mb-2 small italic text-muted">
+                            {{ risk.AI_Insight_Summary if risk and risk.AI_Insight_Summary else "No AI analysis available yet." }}
+                        </p>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-lg w-100 shadow">
+                    <i class="fas fa-save me-2"></i> Save Risk Record
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function calculateScore() {
+    let p = document.getElementById('Probability').value;
+    let i = document.getElementById('Impact').value;
+    document.getElementById('probVal').innerText = p;
+    document.getElementById('impVal').innerText = i;
+    
+    let score = p * i;
+    let display = document.getElementById('scoreDisplay');
+    display.innerText = score;
+    
+    if (score >= 16) { display.className = 'mb-0 fw-bold text-danger'; }
+    else if (score >= 9) { display.className = 'mb-0 fw-bold text-warning'; }
+    else if (score >= 4) { display.className = 'mb-0 fw-bold text-primary'; }
+    else { display.className = 'mb-0 fw-bold text-success'; }
+}
+window.onload = calculateScore;
+</script>
+{% endblock %}

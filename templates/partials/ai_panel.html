@@ -1,0 +1,304 @@
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<div class="container-fluid d-flex flex-column p-0 h-100 bg-dark">
+    <div class="flex-shrink-0 p-3 border-bottom border-secondary shadow-sm">
+        <div class="form-floating mb-2">
+            <select id="modelSelect" class="form-select form-select-sm bg-dark text-light border-primary">
+                <option value="gpt-4o-mini" selected>⚡ GPT-4o mini — Fast & Cost-effective</option>
+                <option value="gpt-5-mini">🧠 GPT-5 mini — Better reasoning</option>
+                <option value="gpt-5">🚀 GPT-5 — Maximum quality</option>
+            </select>
+            <label for="modelSelect" class="text-primary fw-semibold">AI Model</label>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="text-light mb-0"><i class="bi bi-chat-dots me-2"></i>Chat History</h6>
+            <button type="button" id="clearBtn" class="btn btn-outline-danger btn-sm py-0 px-2" title="Clear History">
+                <i class="bi bi-eraser"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="chatHistory" class="flex-grow-1 overflow-auto p-3 chat-messages">
+        </div>
+
+    <div class="flex-shrink-0 bg-light border-top p-3 shadow-lg">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <label for="prompt" class="form-label mb-0 fw-bold text-dark">Your Message</label>
+            <span id="tokenBadge" class="badge rounded-pill bg-secondary" style="display: none;">
+                Tokens: <span id="tokenCount">0</span>
+            </span>
+        </div>
+
+        <div class="form-check form-switch mb-2 d-flex align-items-center">
+            <input class="form-check-input" type="checkbox" id="includeContext">
+            <label class="form-check-label ms-2 small text-dark" for="includeContext">
+                <strong>Include app data</strong>
+            </label>
+            <i class="bi bi-question-circle text-muted ms-2" 
+               style="cursor: help;" 
+               data-bs-toggle="tooltip" 
+               data-bs-placement="top" 
+               title="Includes dynamic context from your data. Use only as needed due to higher resource consumption. Static knowledge base is always available.">
+            </i>
+        </div>
+
+        <div class="input-group">
+            <textarea id="prompt" class="form-control" rows="3" 
+                      placeholder="Ask something... (Shift+Enter for new line)"></textarea>
+            <button id="askBtn" class="btn btn-primary d-flex align-items-center justify-content-center" style="width: 50px;">
+                <i class="bi bi-send-fill"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Glavni kontejner panela */
+    .chat-messages {
+        background-color: #1a202c; /* Tamna siva/plava */
+        scrollbar-width: thin;
+        scrollbar-color: #4a5568 #1a202c;
+    }
+
+    /* Scrollbar stilovi */
+    #chatHistory::-webkit-scrollbar { width: 6px; }
+    #chatHistory::-webkit-scrollbar-track { background: #1a202c; }
+    #chatHistory::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 10px; }
+    #chatHistory::-webkit-scrollbar-thumb:hover { background: #718096; }
+
+    /* Stilovi za poruke */
+    .message-content {
+        line-height: 1.5;
+        font-size: 0.95rem;
+    }
+
+    /* Renderovanje Markdown tabela unutar AI odgovora */
+    .message-content table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+        background: #2d3748;
+        color: #fff;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    .message-content th, .message-content td {
+        border: 1px solid #4a5568;
+        padding: 8px;
+        text-align: left;
+    }
+    .message-content th { background-color: #4a5568; font-weight: bold; }
+
+    /* Animacija za "Thinking..." */
+    .pulse { animation: pulse-animation 1.5s infinite; }
+    @keyframes pulse-animation {
+        0% { opacity: 0.5; }
+        50% { opacity: 1; }
+        100% { opacity: 0.5; }
+    }
+
+    /* Prilagođavanje textarea */
+    #prompt { resize: none; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    #askBtn { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+</style>
+
+<script>
+    const STORAGE_KEY = 'ai_panel_chat_history';
+    let chatHistory = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    
+    // Čišćenje zaostalih loading poruka
+    chatHistory = chatHistory.filter(msg => msg.text !== 'Thinking...');
+
+    // Inicijalizacija Marked.js opcija za bezbednost i tabele
+    marked.setOptions({
+        breadcrumb: false,
+        headerIds: false,
+        mangle: false
+    });
+
+    function saveToStorage() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(chatHistory));
+    }
+
+    function renderMarkdown(text) {
+        if (!text) return '';
+        try {
+            return marked.parse(text);
+        } catch (e) {
+            return text;
+        }
+    }
+
+    function scrollToBottom() {
+        const box = document.getElementById("chatHistory");
+        if (box) box.scrollTop = box.scrollHeight;
+    }
+
+    function renderMessage(sender, text, messageId) {
+        const chatHistoryBox = document.getElementById("chatHistory");
+        const div = document.createElement('div');
+        div.id = messageId;
+        div.className = `d-flex ${sender === 'user' ? 'justify-content-end' : 'justify-content-start'} mb-3`;
+        
+        const isAi = sender === 'ai';
+        const bgColor = isAi ? 'bg-secondary' : 'bg-primary';
+        const thinkingClass = text === 'Thinking...' ? 'pulse' : '';
+
+        div.innerHTML = `
+            <div class="${bgColor} text-white p-2 rounded shadow-sm position-relative ${thinkingClass}" style="max-width: 85%;">
+                <small class="d-block fw-bold border-bottom border-light mb-1" style="font-size: 0.7rem;">
+                    ${isAi ? '🤖 AI ASSISTANT' : '👤 YOU'}
+                </small>
+                <div id="${messageId}-text" class="message-content">
+                    ${isAi ? renderMarkdown(text) : escapeHtml(text)}
+                </div>
+                ${isAi && text !== 'Thinking...' ? `
+                    <button onclick="savePromptToDb('${messageId}')" class="btn btn-sm text-light p-0 ps-2" title="Save to favorites">
+                        <i class="bi bi-bookmark-plus" style="font-size: 0.8rem;"></i>
+                    </button>
+                ` : ''}
+            </div>
+        `;
+        chatHistoryBox.appendChild(div);
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Poziv ka tvom backendu za čuvanje (koji ćemo sledeće kreirati)
+    async function savePromptToDb(messageId) {
+        const msg = chatHistory.find(m => m.id === messageId);
+        const userMsg = chatHistory[chatHistory.indexOf(msg) - 1]; // Uzimamo prethodnu poruku (pitanje)
+        const fullHistoryString = JSON.stringify(chatHistory);
+        const btn = document.querySelector(`#${messageId} i.bi-bookmark-plus`);
+        
+        const icon = document.querySelector(`#${messageId} i.bi-bookmark-plus, #${messageId} i.bi-bookmark-check-fill`);
+    
+      // 2. Provera: Ako ikonica već ima klasu 'bi-bookmark-check-fill', znači da je sačuvano
+      if (icon && icon.classList.contains('bi-bookmark-check-fill')) {
+          console.log("Poruka je već sačuvana.");
+          return; // Prekini izvršavanje
+      }
+
+
+        if (!msg) return;
+
+        try {
+            const res = await fetch("ai/save-prompt", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt: userMsg ? userMsg.text : "N/A",
+                    response: msg.text,
+                    model: document.getElementById("modelSelect").value,
+                    history:fullHistoryString,
+                    dynamic_context:document.getElementById("includeContext").checked
+                })
+            });
+            if (res.ok) {                
+                btn.className = "bi bi-bookmark-check-fill text-warning";
+            }
+        } catch (err) { console.error(err); }
+    }
+
+    // Glavni Event Listeneri
+    document.addEventListener('DOMContentLoaded', () => {
+        chatHistory.forEach(m => renderMessage(m.sender, m.text, m.id));
+        scrollToBottom();
+
+        // Tooltip inicijalizacija
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(t => new bootstrap.Tooltip(t));
+
+        // Token Counter logika
+        const textarea = document.getElementById('prompt');
+        textarea.addEventListener('input', async function() {
+            const badge = document.getElementById('tokenBadge');
+            const val = this.value.trim();
+            if (!val) { badge.style.display = 'none'; return; }
+            
+            badge.style.display = 'inline-block';
+            const count = await calcTokens(val);
+            document.getElementById('tokenCount').textContent = count;
+            
+            badge.className = `badge rounded-pill ${count < 100 ? 'bg-success' : count < 400 ? 'bg-warning text-dark' : 'bg-danger'}`;
+        });
+    });
+
+    document.getElementById("askBtn").addEventListener("click", async () => {
+        const input = document.getElementById("prompt");
+        const prompt = input.value.trim();
+        if (!prompt) return;
+
+        // User message
+        const uId = 'u-' + Date.now();
+        chatHistory.push({id: uId, sender: 'user', text: prompt});
+        renderMessage('user', prompt, uId);
+        input.value = "";
+        
+        // Thinking message
+        const tId = 't-' + Date.now();
+        renderMessage('ai', 'Thinking...', tId);
+        scrollToBottom();
+
+        try {
+            const res = await fetch("/ai/ask", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    page: window.AI_CONTEXT || document.getElementById("content")?.innerHTML || "",
+                    model: document.getElementById("modelSelect").value,
+                    liveContextStatus: document.getElementById("includeContext").checked
+                })
+            });
+            const data = await res.json();
+            
+            // Update AI message
+            const textEl = document.getElementById(`${tId}-text`);
+            const parentEl = textEl.parentElement;
+            parentEl.classList.remove('pulse');
+            textEl.innerHTML = renderMarkdown(data.answer);
+            
+            // Dodaj bookmark dugme nakon što odgovor stigne
+            const bkmrk = document.createElement('button');
+            bkmrk.className = "btn btn-sm text-light p-0 ps-2";
+            bkmrk.innerHTML = '<i class="bi bi-bookmark-plus" style="font-size: 0.8rem;"></i>';
+            bkmrk.onclick = () => savePromptToDb(tId);
+            parentEl.appendChild(bkmrk);
+
+            chatHistory.push({id: tId, sender: 'ai', text: data.answer});
+            saveToStorage();
+        } catch (err) {
+            document.getElementById(`${tId}-text`).innerText = "Error: " + err.message;
+        }
+        scrollToBottom();
+    });
+
+    document.getElementById("prompt").addEventListener("keydown", e => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            document.getElementById("askBtn").click();
+        }
+    });
+
+    document.getElementById("clearBtn").onclick = () => {
+        chatHistory = [];
+        saveToStorage();
+        document.getElementById("chatHistory").innerHTML = '';
+    };
+
+    async function calcTokens(tekst) {
+        try {
+            const res = await fetch("/ai/tokenscount", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({tekst: tekst})
+            });
+            return await res.json();
+        } catch { return 0; }
+    }
+</script>

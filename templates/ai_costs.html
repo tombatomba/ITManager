@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}My AI Costs{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="h4 mb-0 text-primary"><i class="fas fa-microchip me-2"></i>Analitics</h2>
+        
+        <form class="d-flex gap-2 align-items-end bg-white p-3 rounded shadow-sm border">
+            <div class="form-group">
+                <label class="form-label small fw-bold mb-1">From:</label>
+                <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date }}">
+            </div>
+            <div class="form-group">
+                <label class="form-label small fw-bold mb-1">To:</label>
+                <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date }}">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm px-3">
+                <i class="fas fa-sync-alt me-1"></i> Refresh
+            </button>
+        </form>
+    </div>
+
+    <div class="row g-3 mb-4 text-center">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 border-top border-primary border-4">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Total costs</div>
+                    <div class="h3 mb-0 text-dark font-monospace">${{ "%.4f"|format(stats_by_model|sum(attribute='total_cost')) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 border-top border-info border-4">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Total tokens</div>
+                    <div class="h3 mb-0 text-dark">{{ "{:,}".format(stats_by_model|sum(attribute='total_tokens')) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 border-top border-success border-4">
+                <div class="card-body">
+                    <div class="text-muted small text-uppercase fw-bold">Requests amount</div>
+                    <div class="h3 mb-0 text-dark">{{ logs|length }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow-sm border-0 p-3" style="min-height: 380px;">
+                <h6 class="fw-bold mb-3 border-bottom pb-2">Daily Trend</h6>
+                <div class="chart-container" style="position: relative; height:300px;">
+                    <canvas id="lineChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card shadow-sm border-0 p-3" style="min-height: 380px;">
+                <h6 class="fw-bold mb-3 border-bottom pb-2">Distribution Per Model</h6>
+                <div class="chart-container" style="position: relative; height:300px;">
+                    <canvas id="pieChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+            <h6 class="mb-0 fw-bold text-secondary">DETAILS</h6>            
+        </div>
+        <div class="card-body p-3">
+            <div class="table-responsive">
+                <table id="logsTable" class="table table-hover align-middle mb-0 w-100 border">
+                    <thead class="bg-light text-muted small text-uppercase">
+                        <tr>
+                            <th>Date</th>
+                            <th>Model</th>
+                            <th>Status</th>
+                            <th>Prompt & Response</th>
+                            <th>Tokens</th>
+                            <th>Price ($)</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody class="small">
+                        {% for log in logs %}
+                        <tr>
+                            <td data-order="{{ log.CreatedAt.strftime('%Y%m%d%H%M%S') }}">
+                                {{ log.CreatedAt.strftime('%d.%m.%Y %H:%M') }}
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ log.Model }}</span></td>
+                            <td>
+                                {% if log.ExecutionStatus == 'success' %}
+                                    <i class="fas fa-check-circle text-success" title="Uspešno">success</i>
+                                {% else %}
+                                    <i class="fas fa-exclamation-circle text-danger" title="{{ log.ErrorMessage }}"></i>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 250px; cursor: pointer;" 
+                                     data-bs-toggle="tooltip" 
+                                     data-bs-html="true"
+                                     title="<div class='text-start'>
+                                                <strong class='text-warning'>PROMPT:</strong><br>{{ log.PromptText | e | replace('\n', '<br>') }}<br><br>
+                                                <strong class='text-info'>ODGOVOR:</strong><br>{{ log.ResponseText | e | replace('\n', '<br>') if log.ResponseText else 'Nema odgovora' }}
+                                            </div>">
+                                    {{ log.PromptText[:60] }}...
+                                </div>
+                            </td>
+                            <td>{{ log.InputTokens }} / {{ log.OutputTokens }}</td>
+                            <td class="fw-bold" data-order="{{ log.EstimatedPrice }}">
+                                {{ "%.5f"|format(log.EstimatedPrice) }}
+                            </td>
+                            <td>{{ log.ExecutionTimeMs }}ms</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tooltip-inner {
+        max-width: 500px !important;
+        padding: 15px;
+        background-color: #2b3035;
+        border: 1px solid #495057;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    #logsTable thead th { border-bottom: 2px solid #dee2e6; }
+    .dataTables_filter input { border-radius: 20px; padding: 5px 15px; border: 1px solid #ced4da; }
+    .dataTables_length select { border-radius: 5px; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+
+<script>
+    //alert('do this!!!!');
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Sigurno preuzimanje podataka pomoću tojson filtera
+        // Ovo sprečava pucanje JS-a čak i ako su liste prazne
+        const statsByDay = {{ stats_by_day|tojson|safe if stats_by_day else '[]' }};
+        const statsByModel = {{ stats_by_model|tojson|safe if stats_by_model else '[]' }};
+    
+        console.log("Podaci po danima:", statsByDay);
+        console.log("Podaci po modelima:", statsByModel);
+    
+        // 2. Priprema nizova za grafikone
+        const dailyLabels = statsByDay.map(item => item.day);
+        const dailyData = statsByDay.map(item => item.daily_cost);
+        
+        const modelLabels = statsByModel.map(item => item.model);
+        const modelData = statsByModel.map(item => item.total_cost);
+    
+        // --- TEST ALERT ---
+        //alert('JS radi! Učitano dana: ' + dailyLabels.length);
+    
+        // 3. Line Chart
+        const lineCtx = document.getElementById('lineChart');
+        if (lineCtx && dailyLabels.length > 0) {
+            new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: dailyLabels,
+                    datasets: [{
+                        label: 'Trošak ($)',
+                        data: dailyData,
+                        borderColor: '#0d6efd',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    
+        // 4. Pie Chart
+        const pieCtx = document.getElementById('pieChart');
+        if (pieCtx && modelLabels.length > 0) {
+            new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: modelLabels,
+                    datasets: [{
+                        data: modelData,
+                        backgroundColor: ['#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#fd7e14', '#198754']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    
+        // 5. DataTables (jQuery)
+        if (typeof $ !== 'undefined' && $.fn.DataTable) {
+            $('#logsTable').DataTable({
+                "order": [[ 0, "desc" ]]
+            });
+        }
+    });
+    </script>
+{% endblock %}

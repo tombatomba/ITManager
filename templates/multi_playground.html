@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}AI Playground - Multi Provider{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="row mb-3">
+        <div class="col-12 text-center">
+            <h1>🤖 AI Playground - Multi Provider</h1>
+            <p class="text-muted">Compare OpenAI, DeepSeek, Claude, and Gemini with RAG context</p>
+        </div>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-7">
+                            <div class="mb-3">
+                                <label for="promptInput" class="form-label fw-bold">Your Prompt:</label>
+                                <textarea id="promptInput" class="form-control" rows="3" placeholder="Ask something about the budget or the team..."></textarea>
+                                <div class="mt-2">
+                                    <span id="tokenBadge" class="badge bg-secondary" style="display: none;">
+                                        Estimated tokens: <span id="tokenCount">0</span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Global Settings:</label>
+                            <div class="card bg-light p-3 border-0">
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" id="includeContext">
+                                    <label class="form-check-label" for="includeContext">
+                                        <strong>Include Context</strong> (Embeddings from DB)
+                                    </label>
+                                </div>
+                                <div class="d-flex flex-wrap gap-3 mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableOpenai" checked>
+                                        <label class="form-check-label" for="enableOpenai">OpenAI</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableDeepseek" checked>
+                                        <label class="form-check-label" for="enableDeepseek">DeepSeek</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableClaude" checked>
+                                        <label class="form-check-label" for="enableClaude">Claude</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableGemini" checked>
+                                        <label class="form-check-label" for="enableGemini">Gemini</label>
+                                    </div>
+                                </div>
+
+                                <div class="mt-2 pt-3 border-top">
+                                    <label class="form-label small fw-bold text-muted">Context Document:</label>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input type="file" id="playgroundFile" accept=".xlsx, .xls" class="d-none">
+                                        <button class="btn btn-sm btn-outline-primary" id="attachBtn" type="button">
+                                            <i class="bi bi-paperclip me-1"></i> Upload XLS
+                                        </button>
+                                        <div id="fileStatusContainer" class="d-none flex-grow-1">
+                                            <div class="d-flex align-items-center bg-white border px-2 py-1 rounded-pill shadow-sm">
+                                                <i class="bi bi-file-earmark-spreadsheet text-success me-2"></i>
+                                                <span id="uploadedFileName" class="small text-truncate" style="max-width: 120px;"></span>
+                                                <button type="button" class="btn-close ms-2" style="font-size: 0.5rem;" id="removeFileBtn"></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-3">
+                        <div class="col-md-4">
+                            <button id="sendBtn" class="btn btn-primary w-100 shadow-sm">
+                                <span id="sendBtnText">🚀 Send to All</span>
+                                <span id="sendBtnSpinner" class="spinner-border spinner-border-sm" style="display: none;"></span>
+                            </button>
+                        </div>
+                        <div class="col-md-2">
+                            <button id="clearBtn" class="btn btn-outline-danger w-100">Clear All</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-2">
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header provider-header openai-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 text-white"><span class="status-indicator" id="openaiStatus"></span> OpenAI</h6>
+                    <select id="openaiModel" class="form-select form-select-sm" style="width: auto; font-size: 0.7rem;">
+                        <option value="gpt-4o">gpt-4o</option>
+                        <option value="gpt-4o-mini">gpt-4o-mini</option>
+                    </select>
+                </div>
+                <div class="card-body p-0">
+                    <div id="openaiChat" class="chat-container"></div>
+                </div>
+                <div class="card-footer d-flex justify-content-between bg-white border-0 py-1">
+                    <small class="text-muted" style="font-size: 0.7rem;">Tokens: <span id="openaiTokens">0</span></small>
+                    <small class="text-muted" id="openaiTime" style="font-size: 0.7rem;"></small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header provider-header deepseek-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 text-white"><span class="status-indicator" id="deepseekStatus"></span> DeepSeek</h6>
+                    <span class="badge bg-light text-dark opacity-75" style="font-size: 0.6rem;">V3 / R1</span>
+                </div>
+                <div class="card-body p-0">
+                    <div id="deepseekChat" class="chat-container"></div>
+                </div>
+                <div class="card-footer d-flex justify-content-between bg-white border-0 py-1">
+                    <small class="text-muted" style="font-size: 0.7rem;">Tokens: <span id="deepseekTokens">0</span></small>
+                    <small class="text-muted" id="deepseekTime" style="font-size: 0.7rem;"></small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header provider-header claude-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 text-white"><span class="status-indicator" id="claudeStatus"></span> Claude</h6>
+                    <select id="claudeModel" class="form-select form-select-sm" style="width: auto; font-size: 0.7rem;">
+                        <option value="claude-sonnet-4-6">Sonnet (Balanced)</option>
+                        <option value="claude-haiku-4-5">Haiku (Fast/cheep)</option>
+                        <option value="claude-opus-4-6">Opus (Best/expensive)</option>
+                    </select>
+                </div>
+                <div class="card-body p-0">
+                    <div id="claudeChat" class="chat-container"></div>
+                </div>
+                <div class="card-footer d-flex justify-content-between bg-white border-0 py-1">
+                    <small class="text-muted" style="font-size: 0.7rem;">Tokens: <span id="claudeTokens">0</span></small>
+                    <small class="text-muted" id="claudeTime" style="font-size: 0.7rem;"></small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header provider-header gemini-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0 text-white"><span class="status-indicator" id="geminiStatus"></span> Gemini</h6>
+                    <select id="geminiModel" class="form-select form-select-sm" style="width: auto; font-size: 0.7rem;">
+                        <option value="gemini-1.5-flash">1.5 Flash</option>
+                        <option value="gemini-1.5-pro">1.5 Pro</option>
+                    </select>
+                </div>
+                <div class="card-body p-0">
+                    <div id="geminiChat" class="chat-container"></div>
+                </div>
+                <div class="card-footer d-flex justify-content-between bg-white border-0 py-1">
+                    <small class="text-muted" style="font-size: 0.7rem;">Tokens: <span id="geminiTokens">0</span></small>
+                    <small class="text-muted" id="geminiTime" style="font-size: 0.7rem;"></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function(global) {
+    'use strict';
+
+    const CSS_STYLES = `
+        .chat-container { height: 55vh; overflow-y: auto; padding: 10px; background: #fdfdfd; font-size: 0.9rem; }
+        .provider-header { padding: 8px 12px; }
+        .openai-header { background-color: #10a37f; }
+        .deepseek-header { background-color: #3b82f6; }
+        .claude-header { background-color: #d97757; }
+        .gemini-header { background-color: #1a73e8; }
+        .message { margin-bottom: 12px; padding: 10px; border-radius: 8px; position: relative; word-wrap: break-word; }
+        .user-message { background-color: #f0f2f5; color: #212529; border: 1px solid #dee2e6; }
+        .ai-message { background-color: white; border: 1px solid #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .status-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; background-color: #bbb; }
+        .status-ready { background-color: #28a745; }
+        .status-thinking { background-color: #ffc107; }
+        .status-error { background-color: #dc3545; }
+        table { font-size: 0.75rem; width: 100%; border-collapse: collapse; margin: 8px 0; }
+        table, th, td { border: 1px solid #eee; padding: 4px 8px; }
+        th { background: #f8f9fa; }
+        pre { background: #f4f4f4; padding: 5px; border-radius: 4px; font-size: 0.8rem; overflow-x: auto; }
+    `;
+
+    const AIMultiPlayground = {
+        _state: { 
+            isSending: false, 
+            histories: { openai: [], deepseek: [], claude: [], gemini: [] } 
+        },
+        PROVIDERS: ['openai', 'deepseek', 'claude', 'gemini'],
+
+        init: function() {
+            const styleElement = document.createElement('style');
+            styleElement.textContent = CSS_STYLES;
+            document.head.appendChild(styleElement);
+
+            const fileInput = document.getElementById('playgroundFile');
+            const attachBtn = document.getElementById('attachBtn');
+            const removeBtn = document.getElementById('removeFileBtn');
+            const fileNameSpan = document.getElementById('uploadedFileName');
+            const statusContainer = document.getElementById('fileStatusContainer');
+
+            attachBtn.onclick = () => fileInput.click();
+            fileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    fileNameSpan.textContent = file.name;
+                    statusContainer.classList.remove('d-none');
+                    attachBtn.classList.add('d-none');
+                }
+            };
+            removeBtn.onclick = () => {
+                fileInput.value = '';
+                statusContainer.classList.add('d-none');
+                attachBtn.classList.remove('d-none');
+            };
+
+            document.getElementById('sendBtn')?.addEventListener('click', () => this.sendToAllProviders());
+            document.getElementById('clearBtn')?.addEventListener('click', () => this.clearAllChats());
+            
+            document.getElementById('promptInput')?.addEventListener('input', (e) => {
+                const count = e.target.value.length > 0 ? Math.ceil(e.target.value.length / 4) : 0;
+                const badge = document.getElementById('tokenBadge');
+                if (badge) {
+                    badge.style.display = count > 0 ? 'inline-block' : 'none';
+                    document.getElementById('tokenCount').textContent = count;
+                }
+            });
+        },
+
+        toBase64: function(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        },
+
+        addMessageToChat: function(provider, sender, text) {
+            const container = document.getElementById(`${provider}Chat`);
+            if (!container) return;
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${sender === 'user' ? 'user-message' : 'ai-message'}`;
+            const content = document.createElement('div');
+            content.innerHTML = sender === 'user' ? `<strong>You:</strong><br>${text.replace(/\n/g, '<br>')}` : marked.parse(text);
+            msgDiv.appendChild(content);
+            container.appendChild(msgDiv);
+            container.scrollTop = container.scrollHeight;
+            return msgDiv;
+        },
+
+        updateStatus: function(provider, status) {
+            const el = document.getElementById(`${provider}Status`);
+            if (el) el.className = `status-indicator status-${status}`;
+        },
+
+        sendToAllProviders: async function() {
+            const prompt = document.getElementById('promptInput').value.trim();
+            const includeContext = document.getElementById('includeContext').checked;
+            const fileInput = document.getElementById('playgroundFile');
+
+            if (!prompt || this._state.isSending) return;
+
+            this._state.isSending = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('sendBtnSpinner').style.display = 'inline-block';
+
+            let fileBytes = null;
+            let fileName = null;
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                fileName = file.name;
+                fileBytes = await this.toBase64(file);
+            }
+
+            const activeProviders = this.PROVIDERS.filter(p => {
+                const cb = document.getElementById(`enable${p.charAt(0).toUpperCase() + p.slice(1)}`);
+                return cb && cb.checked;
+            });
+
+            activeProviders.forEach(p => this.addMessageToChat(p, 'user', prompt));
+            document.getElementById('promptInput').value = '';
+
+            const promises = activeProviders.map(async (p) => {
+                const startTime = Date.now();
+                this.updateStatus(p, 'thinking');
+                const chatDiv = this.addMessageToChat(p, 'ai', '...');
+
+                const requestData = { 
+                    prompt: prompt, 
+                    include_context: includeContext,
+                    history: this._state.histories[p],
+                    file_bytes: fileBytes,
+                    file_name: fileName
+                };
+
+                const modelDropdown = document.getElementById(`${p}Model`);
+                if (modelDropdown) requestData.model = modelDropdown.value;
+
+                try {
+                    const response = await fetch(`/ai/${p}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    const data = await response.json();
+                    if (response.ok) {
+                        const answer = data.answer || "No response.";
+                        chatDiv.querySelector('div').innerHTML = marked.parse(answer);
+                        document.getElementById(`${p}Tokens`).textContent = data.tokens_used || '0';
+                        
+                        this._state.histories[p].push({role: 'user', content: prompt});
+                        this._state.histories[p].push({role: 'assistant', content: answer});
+                        this.updateStatus(p, 'ready');
+                    } else { throw new Error(data.error || 'Server error'); }
+                } catch (e) {
+                    chatDiv.querySelector('div').innerHTML = `<span class="text-danger">Error: ${e.message}</span>`;
+                    this.updateStatus(p, 'error');
+                } finally {
+                    document.getElementById(`${p}Time`).textContent = ((Date.now() - startTime)/1000).toFixed(2) + 's';
+                }
+            });
+
+            await Promise.allSettled(promises);
+            this._state.isSending = false;
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('sendBtnSpinner').style.display = 'none';
+        },
+
+        clearAllChats: function() {
+            this.PROVIDERS.forEach(p => {
+                const container = document.getElementById(`${p}Chat`);
+                if (container) container.innerHTML = '';
+                this._state.histories[p] = [];
+                this.updateStatus(p, 'ready');
+                document.getElementById(`${p}Tokens`).textContent = '0';
+                document.getElementById(`${p}Time`).textContent = '';
+            });
+        }
+    };
+
+    global.AIMultiPlayground = AIMultiPlayground;
+    document.addEventListener('DOMContentLoaded', () => AIMultiPlayground.init());
+})(window);
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+{% endblock %}

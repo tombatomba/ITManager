@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link href="https://unpkg.com/vis-timeline@latest/styles/vis-timeline-graph2d.min.css" rel="stylesheet" type="text/css" />
+<style>
+    #visualization {
+        width: 100%;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        background: #ffffff;        
+        margin-top: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    #graph-visualization {
+        width: 100%;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        background: #ffffff;        
+        margin-top: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    
+    /* Timeline Item Styles */
+    .vis-item {
+        border-width: 2px;
+        border-radius: 8px;
+        background-color: #ffffff;
+    }
+    
+    .vis-item.risk-increased { border-color: #dc3545; }
+    .vis-item.risk-decreased { border-color: #198754; }
+    .vis-item.risk-neutral { border-color: #0d6efd; }
+
+    .vis-item-content { padding: 12px !important; }
+    
+    .timeline-comment {
+        font-weight: bold;
+        color: #212529;
+        border-bottom: 1px solid #f1f3f5;
+        margin-bottom: 8px;
+        padding-bottom: 5px;
+        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+    }
+    
+    .change-log { font-size: 0.85rem; line-height: 1.5; }
+    .change-item { margin-bottom: 6px; padding: 4px 8px; background: #f8f9fa; border-radius: 4px; }
+    .old-val { color: #6c757d; text-decoration: line-through; font-size: 0.8rem; }
+    .new-val { font-weight: 600; color: #212529; }
+    .arrow { color: #adb5bd; margin: 0 6px; }
+    .label-tag { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6c757d; display: block; margin-bottom: 2px; }
+
+    /* Graph Styling */
+    .vis-graph-group-0 {
+        stroke: #0d6efd !important;
+        stroke-width: 3px !important;
+    }
+    .vis-fill {
+        fill: #0d6efd !important;
+        fill-opacity: 0.1 !important;
+    }
+
+    .timeline-controls {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 8px;
+        display: inline-flex;
+        gap: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-end mb-4">
+        <div>
+            <h2 class="h4 mb-0"><i class="fas fa-history text-primary me-2"></i>Risk Audit: {{ risk.Title }}</h2>
+        </div>
+        
+        <div class="timeline-controls">
+            <button onclick="history.back()" class="btn btn-sm btn-primary"><i class="fas fa-arrow-left me-1"></i> Back</button>
+        </div>
+    </div>
+    
+    <div id="visualization" style="margin-left:43px;"></div>
+
+    <div class="mt-5">
+        <h5 class="text-muted mb-2"><i class="fas fa-chart-line me-2"></i>Risk Score Trend</h5>
+        <div id="graph-visualization"></div>
+    </div>
+</div>
+
+<script type="text/javascript" src="https://unpkg.com/vis-timeline@latest/standalone/umd/vis-timeline-graph2d.min.js"></script>
+
+<script type="text/javascript">
+    // --- PODACI ---
+    var rawGraphData = [
+        {% for entry in history | sort(attribute='Timestamp') %}
+        { x: '{{ entry.Timestamp.isoformat() }}', y: {{ entry.RiskScore }} },
+        {% endfor %}
+    ];
+
+    // Precizno definisanje opsega (sinhronizacija meseci)
+    var firstEvent = new Date(rawGraphData[0].x);
+    var lastEvent = new Date(); 
+    var minDate = new Date(firstEvent.getTime() - (3 * 24 * 60 * 60 * 1000)); // -3 dana
+    var maxDate = new Date(lastEvent.getTime() + (3 * 24 * 60 * 60 * 1000)); // +3 dana
+
+    // --- 1. TIMELINE ---
+    var timelineContainer = document.getElementById('visualization');
+    var timelineItems = new vis.DataSet([
+        {% for i in range(history|length) %}
+            {% set current = history[i] %}
+            {% set prev = history[i+1] if i+1 < history|length else None %}
+            
+            {% set item_class = "risk-neutral" %}
+            {% if prev %}
+                {% if current.RiskScore > prev.RiskScore %}
+                    {% set item_class = "risk-increased" %}
+                {% elif current.RiskScore < prev.RiskScore %}
+                    {% set item_class = "risk-decreased" %}
+                {% endif %}
+            {% endif %}
+
+            {
+                id: {{ loop.index }},
+                start: '{{ current.Timestamp.isoformat() }}',
+                className: '{{ item_class }}',
+                content: `
+                    <div class="timeline-comment">
+                        <i class="fas fa-comment-alt text-muted me-2"></i>
+                        {{ current.ChangeNotes | default("Update", true) }}
+                    </div>
+                    <div class="change-log">
+                        {% if not prev or current.RiskStatus != prev.RiskStatus %}
+                        <div class="change-item">
+                            <span class="label-tag">Status</span>
+                            {% if prev %}<span class="old-val">{{ prev.RiskStatus }}</span>{% endif %}
+                            <span class="arrow">→</span>
+                            <span class="new-val">{{ current.RiskStatus }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% if not prev or current.RiskScore != prev.RiskScore %}
+                        <div class="change-item">
+                            <span class="label-tag">Risk Score:</span>
+                            {% if prev %}<span class="old-val">{{ prev.RiskScore }}</span>{% endif %}
+                            <span class="arrow">→</span>
+                            <span class="new-val">{{ current.RiskScore }}</span>
+                        </div>
+                        {% endif %}
+
+                        {% set curr_strat = (current.MitigationStrategy | default("", true)) | trim %}
+                        {% set prev_strat = ((prev.MitigationStrategy | default("", true)) | trim) if prev else "" %}
+                        
+                        {% if curr_strat != prev_strat %}
+                        <div class="change-item">
+                            <span class="label-tag">Mitigation Strategy:</span>
+                            <div class="small mt-1">
+                                {% if prev and prev_strat %}
+                                    <span class="old-val italic">{{ prev_strat[:40] }}...</span>
+                                    <span class="arrow">→</span>
+                                {% endif %}
+                                <span class="new-val">{{ curr_strat }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                `
+            },
+        {% endfor %}
+    ]);
+
+    var timelineOptions = {
+        width: '100%',
+        height: '400px',
+        start: minDate,
+        end: maxDate,
+        min: minDate,
+        stack: true,
+        showCurrentTime: true,
+        type: 'box',
+        zoomMin: 1000 * 60 * 60 * 12, // 12 sati min zoom
+        margin: { item: { horizontal: 20, vertical: 10 }, axis: 20 }
+    };
+
+    var timeline = new vis.Timeline(timelineContainer, timelineItems, timelineOptions);
+
+    // --- 2. GRAPH2D ---
+    var graphContainer = document.getElementById('graph-visualization');
+    var graphOptions = {
+        start: minDate,
+        end: maxDate,
+        min: minDate,
+        style: 'line',
+        drawPoints: { style: 'circle', size: 5 },
+        shaded: { orientation: 'bottom' },
+        yAxisOrientation: "left",
+        dataAxis: {
+            // Prebacujemo konfiguraciju sa 'left' na 'right'
+            right: { 
+                range: { min: 0, max: 25 }, 
+                title: { text: 'Score' } 
+            },
+            left: { visible: false } // Opciono: potpuno sklanjamo levu osu ako ti ne treba
+        },
+        height: '300px',
+        sampling: true
+    };
+
+    var graph2d = new vis.Graph2d(graphContainer, new vis.DataSet(rawGraphData), graphOptions);
+
+    // --- 3. ULTRA-FAST SYNC (No Lag) ---
+    var isSyncing = false;
+
+    timeline.on('rangechange', function (properties) {
+        if (!isSyncing) {
+            isSyncing = true;
+            graph2d.setWindow(properties.start, properties.end, { animation: false });
+            isSyncing = false;
+        }
+    });
+
+    graph2d.on('rangechange', function (properties) {
+        if (!isSyncing) {
+            isSyncing = true;
+            timeline.setWindow(properties.start, properties.end, { animation: false });
+            isSyncing = false;
+        }
+    });
+</script>
+{% endblock %}

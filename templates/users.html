@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Users{% endblock %}
+
+{% block content %}
+
+<h2>Users Management</h2>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="flash-message {{ users }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<!-- Add User Form -->
+<form action="{{ url_for('web.users_web') }}" method="POST">
+    <div class="mb-3">
+        <input type="text" name="username" class="form-control" placeholder="User Name" required>
+    </div>
+    <div class="mb-3">
+        <input type="email" name="email" class="form-control" placeholder="Email" required>
+    </div>
+    <div class="mb-3">
+        <select name="role" class="form-control" required>
+            <option value="">Select Role</option>
+            <option value="Admin">Admin</option>
+            <option value="User">User</option>
+            <option value="Viewer">Viewer</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Add User</button>
+</form>
+
+<!-- Users Table -->
+<table class="table table-striped">
+    <tr>
+        <th class="d-none">UserID</th>
+        <th>User Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Created At</th>
+        <th>Actions</th>
+    </tr>
+
+    {% for user in users %}
+    <tr>
+        <td class="d-none">{{ user.ID }}</td>
+        <td>{{ user.Name }}</td>
+        <td>{{ user.Email }}</td>
+        <td>{{ user.Role }}</td>
+        <td>{{ user.CreatedAt.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>            
+            <a href="{{ url_for('web.edit_user', user_id=user.ID) }}" class="btn btn-warning btn-sm"><i class="bi bi-pencil-square"></i></a>
+            <form action="{{ url_for('web.delete_user', user_id=user.ID) }}" method="post" style="display:inline;">
+                <button type="submit" class="btn btn-danger btn-sm"onclick="return confirm('Are you sure?')"><i class="bi bi-trash"></i></button>
+            </form>
+            <a href="{{ url_for('web.employee_goals', employee_id=user.ID) }}" class="btn btn-secondary btn-sm"><i class="bi bi-bullseye"></i></a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+{% endblock %}

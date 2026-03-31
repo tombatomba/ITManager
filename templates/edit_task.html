@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Edit Task #{{ task.ID }}</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="TaskName" class="form-label">Task Name</label>
+            <input type="text" class="form-control" name="TaskName" value="{{ task.Name }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="TaskName" class="form-label">Task Description</label>
+            <input type="text" class="form-control" name="TaskDescription" value="{{ task.Description }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="TaskCategory" class="form-label">Category</label>
+            <select class="form-select" name="TaskCategory">
+                {% for cat in categories %}
+                    <option value="{{ cat.ID }}" {% if cat.ID == task.TaskCategoryID %}selected{% endif %}>
+                        {{ cat.Name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label">End Date</label>
+                <input type="date" class="form-control" name="EndDate" value="{{ task.EndDate }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label class="form-label">Activation Date</label>
+                <input type="date" class="form-control" name="ActivationDate" value="{{ task.ActivationDate }}">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="AssignedTo" class="form-label">Assigned To</label>
+            <select class="form-select" name="AssignedTo">
+                <option value="-1">-- Unassigned (None) --</option>
+                {% for user in users %}
+                    <option value="{{ user.ID }}" {% if user.ID == task.AssignedTo %}selected{% endif %}>
+                        {{ user.Name}} 
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{{ url_for('web.tasks_overview') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

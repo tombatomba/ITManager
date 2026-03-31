@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h2 class="mb-3">Risk Management: <span class="text-primary">{{ risk.Title }}</span></h2>
+            <p class="text-muted">ID: {{ risk.RiskID }} | Identifikovan: {{ risk.DateIdentified.strftime('%d.%m.%Y.') }}</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <div class="badge {% if risk.RiskScore >= 15 %}bg-danger{% elif risk.RiskScore >= 8 %}bg-warning{% else %}bg-success{% endif %} p-3 fs-5">
+                Risk Score: {{ risk.RiskScore }}
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <form method="POST" action="{{ url_for('update_risk', risk_id=risk.RiskID) }}">
+        <div class="row">
+            <div class="col-lg-7">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light fw-bold">Osnovne Informacije</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="Title" class="form-label">Naslov rizika</label>
+                            <input type="text" class="form-control" id="Title" name="Title" value="{{ risk.Title }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="RiskDescription" class="form-label">Opis (Kontekst)</label>
+                            <textarea class="form-control" id="RiskDescription" name="RiskDescription" rows="3">{{ risk.RiskDescription }}</textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="Category" class="form-label">Kategorija</label>
+                                <select class="form-select" id="Category" name="Category">
+                                    <option value="Financial" {% if risk.Category == 'Financial' %}selected{% endif %}>Finansijski</option>
+                                    <option value="Resource" {% if risk.Category == 'Resource' %}selected{% endif %}>Ljudski resursi</option>
+                                    <option value="Technical" {% if risk.Category == 'Technical' %}selected{% endif %}>Tehnički</option>
+                                    <option value="Operational" {% if risk.Category == 'Operational' %}selected{% endif %}>Operativni</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="Status" class="form-label">Status</label>
+                                <select class="form-select" id="Status" name="Status">
+                                    <option value="Identified" {% if risk.Status == 'Identified' %}selected{% endif %}>Identifikovan</option>
+                                    <option value="Mitigated" {% if risk.Status == 'Mitigated' %}selected{% endif %}>Ublažen</option>
+                                    <option value="Accepted" {% if risk.Status == 'Accepted' %}selected{% endif %}>Prihvaćen</option>
+                                    <option value="Closed" {% if risk.Status == 'Closed' %}selected{% endif %}>Zatvoren</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4 border-primary">
+                    <div class="card-header bg-primary text-white fw-bold">Strategija Tretmana</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="MitigationStrategy" class="form-label">Mitigacioni Plan (Kako smanjiti rizik?)</label>
+                            <textarea class="form-control" id="MitigationStrategy" name="MitigationStrategy" rows="3">{{ risk.MitigationStrategy }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="ContingencyPlan" class="form-label">Plan B (Ako se rizik ostvari?)</label>
+                            <textarea class="form-control" id="ContingencyPlan" name="ContingencyPlan" rows="3">{{ risk.ContingencyPlan }}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light fw-bold">Matrica Procene</div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between">
+                                Verovatnoća (1-5) <span id="probVal" class="fw-bold text-primary">{{ risk.Probability }}</span>
+                            </label>
+                            <input type="range" class="form-range" min="1" max="5" id="Probability" name="Probability" value="{{ risk.Probability }}" oninput="updateScore()">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label d-flex justify-content-between">
+                                Uticaj (1-5) <span id="impVal" class="fw-bold text-primary">{{ risk.Impact }}</span>
+                            </label>
+                            <input type="range" class="form-range" min="1" max="5" id="Impact" name="Impact" value="{{ risk.Impact }}" oninput="updateScore()">
+                        </div>
+                        <div class="text-center p-3 bg-light rounded">
+                            <h5 class="mb-0">Preračunati Risk Score: <span id="calculatedScore">{{ risk.RiskScore }}</span></h5>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-info shadow-sm">
+                    <div class="card-header bg-info text-dark d-flex justify-content-between align-items-center">
+                        <span class="fw-bold"><i class="bi bi-robot"></i> ELPatron AI Insight</span>
+                        <small>Last review: {{ risk.Last_AI_Review.strftime('%d.%m %H:%M') if risk.Last_AI_Review else 'Never' }}</small>
+                    </div>
+                    <div class="card-body bg-light">
+                        <p class="fst-italic" id="aiInsightText">
+                            {{ risk.AI_Insight_Summary or "AI trenutno nema dodatnih uvida za ovaj rizik." }}
+                        </p>
+                        <button type="button" class="btn btn-sm btn-outline-info w-100">Osveži AI Analizu</button>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-success btn-lg w-100">Sačuvaj izmene</button>
+                    <a href="{{ url_for('risk_list') }}" class="btn btn-link w-100 mt-2 text-muted">Odustani i vrati se na listu</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+function updateScore() {
+    let p = document.getElementById('Probability').value;
+    let i = document.getElementById('Impact').value;
+    document.getElementById('probVal').innerText = p;
+    document.getElementById('impVal').innerText = i;
+    document.getElementById('calculatedScore').innerText = p * i;
+}
+</script>
+{% endblock %}

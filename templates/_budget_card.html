@@ -1,0 +1,39 @@
+<div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4">
+    <div class="card shadow-sm border-0 rounded-3">
+        <h5 class="card-header bg-dark text-white small d-flex justify-content-between align-items-center">
+            {{ item.name }}
+            <i class="bi bi-info"></i>
+        </h5>
+
+        <div class="card-body small">
+
+            <!-- Detalji potrošnje -->
+            <ul class="list-unstyled mb-3">
+                <li class="mb-1">
+                    <i class="bi bi-cash-coin text-success"></i>
+                    <b>Budget:</b> {{ item.budget | round(2) }}
+                </li>
+                <li class="mb-1">
+                    <i class="bi bi-cart3 text-danger"></i>
+                    <b>Spent:</b> {{ item.spent | round(2) }}
+                </li>
+            </ul>
+
+            <!-- Rezime -->            
+            <p class="mb-2"><b>Used:</b> {{ item.used_percent }}%</p>
+
+            <!-- Progress Bar -->
+            <div class="progress" role="progressbar" aria-valuenow="{{ item.used_percent }}" 
+                 aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar 
+                    {% if item.used_percent < 60 %}bg-success
+                    {% elif item.used_percent < 85 %}bg-warning
+                    {% else %}bg-danger{% endif %}"
+                    style="width: {{ item.used_percent }}%">
+                    {{ item.used_percent }}%
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>

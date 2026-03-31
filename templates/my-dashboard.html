@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<div class="container-fluid py-4" style="background-color: #f8f9fa; min-height: 100vh;">
+    
+    <div class="d-flex justify-content-between align-items-end mb-5 px-2">
+        <div>
+            <h2 class="fw-bold mb-1" style="letter-spacing: -1px;">Control Tower</h2>
+            <p class="text-muted small mb-0">Create own dashboard based on SQL queries and AI prompt</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-success rounded-0 px-4 shadow-sm" onclick="runAllCards()">
+                <i class="bi bi-play-all-fill me-2"></i>Play All
+            </button>
+            <button class="btn btn-primary rounded-0 px-4 shadow-sm" onclick="openModal('new')">
+                <i class="bi bi-plus-lg me-2"></i>New Card
+            </button>
+        </div>
+    </div>
+
+    <div class="row g-4" id="sortableDashboard">
+        {% for card in cards %}
+        <div class="col-12 col-md-{{ card.size }} sortable-item" data-id="{{ card.id }}">
+            <div class="card h-100 border-0 shadow-sm custom-card rounded-0">                
+                <div class="card-header bg-transparent border-0 pt-3 px-4 d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-grip-vertical text-muted me-2 drag-handle" style="cursor: grab; font-size: 1.2rem;"></i>
+                        <span class="text-uppercase fw-bold text-muted" style="font-size: 0.7rem; letter-spacing: 1.2px;">
+                            {{ card.title }}
+                        </span>
+                    </div>
+                    <div class="d-flex align-items-center gap-1">
+                        <button class="btn btn-link btn-sm text-success p-1 btn-run" onclick="runCard({{ card.id }})" title="Run card">
+                            <i class="bi bi-play-fill fs-5"></i>
+                        </button>
+                        <button class="btn btn-link btn-sm text-muted p-1" onclick='openModal("edit", {{ card | tojson }})' title="Edit card">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+                        <button class="btn btn-link btn-sm text-danger p-1" onclick="deleteCard({{ card.id }})" title="Delete card">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        
+                        {% if card.type == 'AI' %}
+                            <div class="ai-badge ms-2"><i class="bi bi-stars"></i> AI</div>
+                        {% else %}
+                            <div class="data-badge ms-2"><i class="bi bi-bar-chart-fill"></i> Data</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card-body px-4 pb-4 d-flex flex-column align-items-center justify-content-center min-vh-20">
+                    <div id="content-{{ card.id }}" class="w-100 text-center">
+                        {% if card.type == 'SQL' %}
+                            {# Proveravamo da li je vrednost lista (tabela) ili skalar #}
+                            {% if card.value is iterable and card.value is not string and card.value|length > 0 and card.value[0] is mapping %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover text-start small">
+                                        <thead>
+                                            <tr>
+                                                {% for key in card.value[0].keys() %}
+                                                    <th class="text-muted border-0">{{ key | upper }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in card.value %}
+                                                <tr>
+                                                    {% for val in row.values() %}
+                                                        <td class="border-0">{{ val if val is not none else '-' }}</td>
+                                                    {% endfor %}
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <div class="sql-container">
+                                    <h1 class="sql-number mb-0">{{ card.value }}</h1>
+                                    <span class="sql-label">Vrednost</span>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="ai-content-box">
+                                <div class="ai-text">{{ card.value | safe | replace('\n', '<br>') }}</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div id="loader-{{ card.id }}" class="spinner-border text-primary d-none" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-transparent border-0 pt-0 pb-3 px-4">
+                    <hr class="my-2 opacity-10">
+                    <div class="text-muted" style="font-size: 0.65rem;">
+                        <i class="bi bi-cpu me-1"></i> {{ card.model if card.type == 'AI' else 'SQL Engine' }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="modal fade" id="cardModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content rounded-0 border-0 shadow-lg">
+            <form id="cardForm" action="/my-dashboard/save" method="POST">
+                <div class="modal-header border-0 px-4 pt-4">
+                    <h5 class="modal-title fw-bold" id="modalTitle">Nova Kartica</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body px-4">
+                    <input type="hidden" name="id" id="cardId">
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Naslov Kartice</label>
+                            <input type="text" name="title" id="cardTitleInput" class="form-control rounded-0" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Tip</label>
+                            <select name="type" id="cardTypeSelect" class="form-select rounded-0">
+                                <option value="SQL">SQL (Podaci)</option>
+                                <option value="AI">AI (Analiza)</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Upit ili Prompt</label>
+                            <!--textarea name="query" id="cardQueryInput" class="form-control rounded-0" rows="6" required style="font-family: monospace;"></textarea-->
+                            <textarea name="query" id="cardQueryInput" class="form-control rounded-0" rows="6" required style="font-family: monospace;"></textarea>
+                            <div id="modalErrorAlert" class="invalid-feedback">Pristup tabeli nije dozvoljen ili je upit neispravan.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Size (1-12)</label>
+                            <select name="size" id="cardSizeInput" class="form-select rounded-0">
+                                <option value="3">Small (3)</option>
+                                <option value="4">Medium (4)</option>
+                                <option value="6">Half (6)</option>
+                                <option value="8">2xMedium (8)</option>
+                                <option value="9">3/4 (9)</option>
+                                <option value="12">Wide (12)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">Model (samo za AI)</label>
+                            <select name="model" id="cardModelInput" class="form-select rounded-0">
+                                <option value="gpt-4o-mini">GPT-4o Mini (Fast & Simple)</option>
+                                <option value="gpt-4o">GPT-4o (Advanced)</option>
+                                <option value="o1-preview">o1-preview (Logičko zaključivanje)</option>                                
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 px-4 pb-4">
+                    <button type="button" class="btn btn-light rounded-0 px-4" data-bs-dismiss="modal">Otkaži</button>
+                    <button type="submit" id="saveCardBtn" class="btn btn-primary rounded-0 px-4">Sačuvaj</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .rounded-0 { border-radius: 0 !important; }
+    .custom-card { border-radius: 0; transition: all 0.2s ease; background: #ffffff; }
+    .custom-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05) !important; }
+    
+    .bg-light-sortable { background-color: #f1f4f8 !important; opacity: 0.6; border: 2px dashed #0d6efd !important; }
+
+    .sql-number { font-size: 3rem; font-weight: 800; background: linear-gradient(135deg, #0d6efd 0%, #00d4ff 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1; }
+    .sql-label { font-size: 0.65rem; text-transform: uppercase; color: #adb5bd; font-weight: 700; letter-spacing: 1px; }
+    
+    .ai-badge { font-size: 0.65rem; padding: 2px 8px; background: #f0f7ff; color: #007bff; font-weight: 700; border: 1px solid #ddecff; }
+    .data-badge { font-size: 0.65rem; padding: 2px 8px; background: #f8f9fa; color: #6c757d; font-weight: 700; border: 1px solid #e9ecef; }
+    
+    .ai-content-box { width: 100%; background: #fbfcfe; padding: 15px; border: 1px solid #f0f3f7; max-height: 200px; overflow-y: auto; text-align: left; }
+    .ai-text { font-size: 0.85rem; color: #4a5568; line-height: 1.6; }
+    .min-vh-20 { min-height: 160px; }
+
+    .table-responsive {
+    max-height: 250px;
+    overflow-y: auto;
+}
+.table thead {
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 1;
+}
+</style>
+
+<script>
+
+let debounceTimer;
+
+// Funkcija koja poziva backend za validaciju
+async function validateSQL() {
+    const query = document.getElementById('cardQueryInput').value;
+    const saveBtn = document.getElementById('saveCardBtn');
+    const errorAlert = document.getElementById('modalErrorAlert');
+    const cardType = document.getElementById('cardTypeSelect');
+    if (cardType.value!="SQL"){
+        saveBtn.disabled = false;
+        errorAlert.classList.add('d-none');
+        document.getElementById('cardQueryInput').classList.remove('is-invalid');
+        document.getElementById('cardQueryInput').classList.add('is-valid');
+        return;
+    }
+    
+    if (!query.trim()) {
+        saveBtn.disabled = true;
+        return;
+    }
+
+
+    try {
+        const response = await fetch('/my-dashboard/validate-query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: query })
+        });
+        const result = await response.json();
+
+        if (result.isValid) {
+            saveBtn.disabled = false;
+            errorAlert.classList.add('d-none');
+            document.getElementById('cardQueryInput').classList.remove('is-invalid');
+            document.getElementById('cardQueryInput').classList.add('is-valid');
+        } else {
+            saveBtn.disabled = true;
+            errorAlert.innerText = result.error;
+            errorAlert.classList.remove('d-none');
+            document.getElementById('cardQueryInput').classList.add('is-invalid');
+        }
+    } catch (e) {
+        console.error("Validation error:", e);
+    }
+}
+
+// Event listener koji prati kucanje
+document.getElementById('cardQueryInput').addEventListener('input', function() {
+    clearTimeout(debounceTimer);    
+    debounceTimer = setTimeout(validateSQL, 500); // Čekaj 500ms nakon zadnjeg tastera
+});
+
+
+// Slušaj promene na Select polju (SQL vs AI)
+document.getElementById('cardTypeSelect').addEventListener('change', function() {
+    validateSQL(); // Pokreni proveru čim se promeni tip
+});
+
+// 1. SORTIRANJE (Drag and Drop)
+document.addEventListener('DOMContentLoaded', function() {
+    const el = document.getElementById('sortableDashboard');
+    if (el) {
+        Sortable.create(el, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'bg-light-sortable',
+            onEnd: function() {
+                let order = [];
+                document.querySelectorAll('.sortable-item').forEach((item, index) => {
+                    order.push({ id: item.getAttribute('data-id'), position: index });
+                });
+                fetch('/my-dashboard/reorder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order: order })
+                }).then(r => r.json()).then(data => console.log("Order saved"));
+            }
+        });
+    }
+});
+
+// 2. RUN CARD (Individualno osvežavanje)
+async function runCard(cardId) {
+    const content = document.getElementById(`content-${cardId}`);
+    const loader = document.getElementById(`loader-${cardId}`);
+    
+    content.classList.add('d-none');
+    loader.classList.remove('d-none');
+
+    try {
+        const response = await fetch(`/my-dashboard/run-card/${cardId}`);
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        if (data.type === "table") {
+            if (!data.value || data.value.length === 0) {
+                content.innerHTML = `<div class="text-muted small">Nema podataka.</div>`;
+            } else {
+                let tableHtml = `<div class="table-responsive"><table class="table table-sm table-hover text-start small"><thead><tr>`;
+                Object.keys(data.value[0]).forEach(key => {
+                    tableHtml += `<th class="text-muted border-0">${key.toUpperCase()}</th>`;
+                });
+                tableHtml += `</tr></thead><tbody>`;
+                data.value.forEach(row => {
+                    tableHtml += `<tr>`;
+                    Object.values(row).forEach(val => {
+                        tableHtml += `<td class="border-0">${val !== null ? val : '-'}</td>`;
+                    });
+                    tableHtml += `</tr>`;
+                });
+                tableHtml += `</tbody></table></div>`;
+                content.innerHTML = tableHtml;
+            }
+
+        } else if (data.type === "scalar") {
+            // OVDE JE BIO PROBLEM: Osiguravamo da je value string pre replace ili ga samo direktno ispisujemo
+            content.innerHTML = `
+                <div class="sql-container">
+                    <h1 class="sql-number mb-0">${data.value}</h1>
+                    <span class="sql-label">Vrednost</span>
+                </div>`;
+        } else {
+            // AI ili običan tekst - proveravamo da li je string pre replace-a
+            let textValue = String(data.value); 
+            content.innerHTML = `
+                <div class="ai-content-box">
+                    <div class="ai-text">${textValue.replace(/\n/g, '<br>')}</div>
+                </div>`;
+        }
+    } catch (e) {
+        content.innerHTML = `<div class="text-danger small">Greška: ${e.message}</div>`;
+    } finally {
+        loader.classList.add('d-none');
+        content.classList.remove('d-none');
+    }
+}
+
+function runAllCards() {
+    document.querySelectorAll('.btn-run').forEach(btn => btn.click());
+}
+
+// 3. DELETE CARD
+function deleteCard(cardId) {
+    if (confirm("Da li ste sigurni?")) {
+        fetch(`/my-dashboard/delete/${cardId}`, { method: 'POST' })
+        .then(response => {
+            if (response.ok) {
+                document.querySelector(`.sortable-item[data-id="${cardId}"]`).remove();
+            } else {
+                alert("Greška pri brisanju.");
+            }
+        });
+    }
+}
+
+// 4. MODAL LOGIC (New / Edit)
+function openModal(mode, cardData = null) {
+    const modalElement = document.getElementById('cardModal');
+    const modal = new bootstrap.Modal(modalElement);
+    const form = document.getElementById('cardForm');
+    form.reset();
+
+    if (mode === 'edit' && cardData) {        
+        document.getElementById('modalTitle').innerText = 'Izmeni Karticu';
+        document.getElementById('cardId').value = cardData.id;
+        document.getElementById('cardTitleInput').value = cardData.title;
+        document.getElementById('cardTypeSelect').value = cardData.type;
+        document.getElementById('cardQueryInput').value = cardData.raw_query || ""; 
+        document.getElementById('cardSizeInput').value = cardData.size;
+        document.getElementById('cardModelInput').value = cardData.model || "gpt-4o-mini";
+    } else {
+        document.getElementById('modalTitle').innerText = 'Nova Kartica';
+        document.getElementById('cardId').value = '';
+        validateSQL(); 
+    }
+    modal.show();
+}
+</script>
+{% endblock %}

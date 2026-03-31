@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}El patron{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            min-height: 100vh;
+            margin: 0; /* Dodajte ovo */
+            overflow-x: hidden; /* Sprečava horizontalni scroll */
+
+        }
+
+        /* Sidebar */
+        #sidebar {
+            min-width: 220px;
+            max-width: 220px;
+            background: #343a40;
+            color: #fff;
+            transition: all 0.3s;
+            flex-shrink: 0; /* Sprečava skupljanje */
+        }
+
+        #sidebar.compact {
+            min-width: 60px;
+            max-width: 60px;
+        }
+
+        #sidebar .nav-link {
+            color: #fff;
+        }
+
+        #sidebar .nav-link:hover {
+            background: #495057;
+        }
+
+        #sidebar .nav-link i {
+            width: 30px;
+        }
+
+        /* Main content */
+        #content {textElement.innerHTML = renderMarkdown(newText);
+            flex: 1;
+            padding: 20px;
+            min-width: 0; /* Važno za flex item da se pravilno smanjuje */
+            overflow-y: auto; /* Omogućava vertikalni scroll samo za content */
+        }
+
+        .topbar {
+            height: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            padding: 0 20px;
+            border-bottom: 1px solid #dee2e6;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .sidebar-toggle {
+            cursor: pointer;
+        }
+
+
+
+
+/* Slide Panel 
+#slidePanel {
+    position: fixed;
+    background: #ffffff;
+    border-left: 1px solid #dee2e6;
+    border-top: 1px solid #dee2e6;
+    box-shadow: 0 0 10px rgba(0,0,0,0.15);
+    z-index: 1050;
+    transition: all 0.35s ease;
+    overflow: auto;
+}
+
+
+ #slidePanel.side-panel-right {
+        top: 0;
+        right: -400px;    
+        width: 400px;
+        height: 100%;
+    }
+
+    
+    #slidePanel.side-panel-right.open {
+        right: 0;
+    }
+
+    
+    #slidePanel.side-panel-bottom {
+        bottom: -300px;   
+        left: 0;
+        width: 100%;
+        height: 300px;
+    }
+
+    
+    #slidePanel.side-panel-bottom.open {
+        bottom: 0;
+    } 
+*/
+
+#slidePanel {
+            min-width: 25%;
+            max-width: 25%;
+            transition: all 0.3s;            
+        }
+
+
+        #slidePanel.compact {
+            min-width: 60px;
+            max-width: 60px;
+            background:  #f8f9fa;
+            border-left-color: #343a40;
+        }
+
+        #slidePanel .nav-link {
+            color: #fff;
+        }
+
+        #slidePanel .nav-link:hover {
+            background: #495057;
+        }
+
+        #slidePanel .nav-link i {
+            width: 30px;
+        }
+        #notifBadge {
+            font-size: 0.65rem;
+            padding: 0.35em 0.5em;
+            border: 2px solid #fff; /* Dodaje beli okvir oko badge-a da se bolje vidi na tamnom navbaru */
+        }
+
+        .list-group-item-action:hover {
+            background-color: #f8f9fa;
+            transition: 0.2s;
+        }   
+
+    /* Stil za animirani loader */
+    .thinking-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(4px);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    }
+
+    .spinner-elpatron {
+        width: 50px;
+        height: 50px;
+        border: 5px solid #f3f3f3;
+        border-top: 5px solid #0d6efd; /* ELPatron Blue */
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .thinking-text {
+        margin-top: 15px;
+        font-weight: 600;
+        color: #0d6efd;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <nav id="sidebar" class="d-flex flex-column p-3">
+        <h4 class="text-center mb-4">El Patron</h4>
+        <ul class="nav nav-pills flex-column mb-auto">
+            <li class="nav-item">
+                <a href="{{ url_for('web.users_web') }}" class="nav-link">
+                    <i class="bi bi-person"></i>
+                    <span class="link-text">Team</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a href="{{ url_for('web.calendar_view') }}" class="nav-link">
+                    <i class="bi bi-calendar-check-fill"></i>
+                    <span class="link-text">Absence</span>
+                </a>
+            </li>    
+            <li class="nav-item">
+                <a href="{{ url_for('web.budget') }}" class="nav-link">
+                    <i class="bi bi-currency-exchange"></i>
+                    <span class="link-text">Budget</span>
+                </a>
+            </li>                    
+
+            <li class="nav-item">
+                <a href="{{ url_for('web.categories_web') }}" class="nav-link">
+                    <i class="bi bi-tags"></i>
+                    <span class="link-text">Categories</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('web.kanban') }}" class="nav-link">
+                    <i class="bi bi-kanban-fill"></i>
+                    <span class="link-text">Kanban board</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('web.notes') }}" class="nav-link">
+                    <i class="bi bi-journals"></i>
+                    <span class="link-text">My notes</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('web.tasks_overview') }}" class="nav-link">
+                    <i class="bi bi-list-task"></i>
+                    <span class="link-text">Tasks</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('web.taskAssign_web') }}" class="nav-link">
+                    <i class="bi bi-flag"></i>
+                    <span class="link-text">Task assignment</span>   
+                </a>
+            </li>
+            <li>
+                <a href="{{url_for('web.risk_list')}}" class="nav-link">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <span class="link-text">Risks</span>   
+                </a>
+            </li>
+
+            <li>
+                <a href="{{url_for('web.ai_playground')}}" class="nav-link">
+                    <i class="bi bi-play"></i>
+                    <span class="link-text">AI playground</span>   
+                </a>
+            </li>
+            <li>
+                <a href="{{url_for('web.multi_playground')}}" class="nav-link">
+                    <i class="bi bi-collection-play"></i>
+                    <span class="link-text">Multi AI</span>   
+                </a>
+            </li>
+            <li>
+                <a href="{{url_for('web.browser_panel')}}" class="nav-link">
+                    <i class="bi bi-globe"></i>
+                    <span class="link-text">Web resource</span>   
+                </a>
+            </li>
+            <li>
+                <a href="{{url_for('web.prompts_archive')}}" class="nav-link">
+                    <i class="bi bi-bookmark-star"></i>
+                    <span class="link-text">Saved prompts</span>   
+                </a>
+            </li>
+            <hr>
+            <li class="nav-section-title  small fw-bold mt-3 mb-1 px-3">Control board</li>
+            <li>
+                <a href="{{ url_for('web.show_dashboard') }}" class="nav-link">
+                    <i class="bi bi-grid"></i>
+                    <span class="link-text">Control Tower</span>   
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('web.admin_panel' )}}" class="nav-link">
+                    <i class="bi bi-gear"></i>
+                    <span class="link-text">Admin</span>   
+                </a>
+            </li>
+
+
+            <hr>
+
+
+            <!--li>
+                <a href="" class="nav-link">
+                    <i class="bi bi-calendar-check-fill"></i>
+                    <span class="link-text">Daily Todo</span>   
+                </a>
+            </li-->
+        </ul>
+        <hr>
+        <div class="text-center">
+            <button id="toggleSidebar"  class="btn btn-sm btn-outline-light"><i  class="bi bi-toggles"></i></button>                        
+        </div>
+    </nav>
+
+    <!-- Main content -->
+    <div id="content" class="d-flex flex-column">
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="d-inline-block"> <a href="#" id="notificationBell" 
+                class="position-relative d-inline-block text-decoration-none" 
+                data-bs-toggle="modal" 
+                data-bs-target="#commentsModal" 
+                onclick="loadNotifications()">
+                 
+                 <i class="bi bi-bell fs-4 text-dark"></i> <span id="notifBadge" 
+                       class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" 
+                       style="display: none; font-size: 0.6rem;">
+                     0
+                 </span>
+             </a>
+         </div>
+
+            <div>
+                {% if session.get('current_user_name') %}
+                    Logged in as: <strong>{{ session.get('current_user_name') }}</strong>
+                    <a href="{{ url_for('web.logout') }}" class="btn btn-sm btn-outline-secondary ms-2">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('web.login') }}" class="btn btn-sm btn-outline-primary">Login</a>
+                {% endif %}
+            </div>
+            
+        </div>
+
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, msg in messages %}
+              <div class="alert alert-{{ category }} alert-dismissible fade show mt-2" role="alert">
+                {{ msg }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Page content -->
+        <div class="mt-3">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <!-- Bootstrap + Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+
+<div id="slidePanel" class="d-flex flex-column p-3 side-panel-right"> 
+    <h4>AI</h4>
+
+            <!-- AI PANEL (UVEK TU) -->
+            <div class="col-12 p-0 slidebar-element">
+                {% include "partials/ai_panel.html" %}
+            </div>
+
+    <hr>
+    <div class="text-center">
+        <button id="toggleSidebar2"  class="btn btn-sm btn-outline-dark"><i  class="bi bi-stars"></i></button>        
+    </div>     
+    <hr>
+    <div class="text-center">
+        <button id="smartTaskButton" onclick="openElPatronTaskGenerator()" class="btn btn-sm btn-outline-dark"><i  class="bi bi-magic"></i></button>        
+    </div>     
+
+
+</div>
+
+<div class="modal fade" id="commentsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-chat-left-text me-2"></i>Recent Activity</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="list-group list-group-flush" id="notificationList">
+                    <div class="p-3 text-center text-muted">Loading...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="taskMagicContainer"></div>
+
+<script>
+
+/**
+ * Funkcija za čuvanje pojedinačnog taska iz AI Suggestion modala
+ * @param {number} index - Redni broj taba/forme (1, 2 ili 3)
+ */
+ window.saveAITask = function(index) {
+    // 1. Pronalaženje elemenata specifičnih za taj tab
+    const form = document.getElementById(`aiTaskForm_${index}`);
+    const saveBtn = document.getElementById(`save-btn-${index}`);
+    const tabBtn = document.getElementById(`tab-btn-${index}`);
+    
+    if (!form || !saveBtn) {
+        console.error(`ELPatron Error: Elementi za index ${index} nisu pronađeni.`);
+        return;
+    }
+
+    const originalContent = saveBtn.innerHTML;
+
+    // 2. Vizuelni feedback - početak slanja
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Saving...';
+
+    // 3. Prikupljanje podataka iz forme
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    // 4. Slanje na backend rutu /save-ai-task
+    fetch('/save-ai-task', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            // 5. USPEH: Vizuelno markiranje forme i taba
+            
+            // Onemogući formu i dodaj sivu nijansu (koristeći CSS klasu iz prošlog koraka)
+            form.classList.add('task-saved');
+            
+            // Promeni izgled dugmeta u "Sačuvano"
+            saveBtn.className = "btn btn-success px-4 shadow-sm disabled";
+            saveBtn.innerHTML = '<i class="fas fa-check-double me-2"></i> Saved';
+
+            // Promeni izgled tab dugmeta na vrhu
+            if (tabBtn) {
+                tabBtn.classList.remove('text-primary');
+                tabBtn.classList.add('text-success', 'fw-bold');
+                tabBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Saved ' + index;
+            }
+
+            console.log(`ELPatron: Task ${index} successfully committed to DB.`);
+        } else {
+            // 6. GREŠKA: Vrati dugme u prvobitno stanje
+            alert('ELPatron Database Error: ' + result.message);
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalContent;
+        }
+    })
+    .catch(error => {
+        console.error('Network Error:', error);
+        alert('Critical connection error while saving task.');
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalContent;
+    });
+};
+
+function openElPatronTaskGenerator(riskId = null) {
+    // Ako pozivamo sa određene stranice rizika, prosleđujemo ID, inače opšti
+    let url = '/generate-task-modal';
+    if (riskId) url += '?risk_id=' + riskId;
+
+    // 1. Prikaži loader
+    const loader = document.createElement('div');
+    loader.id = 'elpatron-loader';
+    loader.className = 'thinking-overlay';    
+
+    loader.innerHTML = `
+        <div class="spinner-elpatron"></div>
+        <div class="thinking-text">ELPatron is Analyzing context...</div>
+    `;
+    document.body.appendChild(loader);
+
+
+    fetch(url)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('taskMagicContainer').innerHTML = html;
+            // Inicijalizujemo Bootstrap modal koji je upravo stigao u HTML-u
+            var myModal1 = new bootstrap.Modal(document.getElementById('aiTaskModal'));
+            document.getElementById('elpatron-loader').remove();
+            myModal1.show();
+        });
+}
+</script>
+
+
+<script>
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        const savedState = localStorage.getItem('panelCompact');
+        if (savedState === 'true') {
+            slidePanel.classList.add('compact');
+            document.querySelectorAll('.slidebar-element').forEach(el => el.classList.add('d-none'));
+        }
+    });
+
+
+    const sidebar = document.getElementById('sidebar');
+    const toggleButton = document.getElementById('toggleSidebar');
+    const toggleButton2 = document.getElementById('toggleSidebar2');
+
+    toggleButton.addEventListener('click', () => {
+        sidebar.classList.toggle('compact');
+        const linkTexts = document.querySelectorAll('.link-text');
+        linkTexts.forEach(el => el.classList.toggle('d-none'));
+    });
+
+    toggleButton2.addEventListener('click', () => {
+        slidePanel.classList.toggle('compact');
+        const isCompact = slidePanel.classList.contains('compact');
+        localStorage.setItem('panelCompact', isCompact);
+        const linkTexts = document.querySelectorAll('.slidebar-element');
+        linkTexts.forEach(el => el.classList.toggle('d-none'));
+    });
+
+// Automatsko zatvaranje Bootstrap alert poruka
+    window.addEventListener('DOMContentLoaded', (event) => {
+        const alerts = document.querySelectorAll('.alert');
+        alerts.forEach((alert) => {
+            setTimeout(() => {
+                // Bootstrap metoda za zatvaranje alert-a
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 3000); // 3000ms = 3 sekunde
+        });
+    });
+
+    function openPanel() {
+    document.getElementById('slidePanel').classList.add('open');
+}
+
+
+
+    window.currentPage = "{{ request.path }}";
+
+
+// Funkcija koja samo proverava broj (za Badge)
+async function checkNotificationCount() {
+    try {
+        const response = await fetch('/get-latest-comments');
+        const data = await response.json();
+        const badge = document.getElementById('notifBadge');
+        
+        if (data.count > 0) {
+            badge.innerText = data.count;
+            badge.style.display = 'block';
+            
+            // Ako je modal trenutno otvoren, osveži i listu unutra
+            const modalElement = document.getElementById('commentsModal');
+            if (modalElement.classList.contains('show')) {
+                renderCommentsList(data.comments);
+            }
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (error) {
+        console.error("Greška pri automatskoj proveri notifikacija:", error);
+    }
+}
+
+// Funkcija koja ispisuje HTML listu u modal
+function renderCommentsList(comments) {
+    const list = document.getElementById('notificationList');
+    if (comments.length > 0) {
+        list.innerHTML = ''; 
+        comments.forEach(c => {
+            list.innerHTML += `
+                <a href="/task/${c.task_id}" class="list-group-item list-group-item-action p-3 border-start border-4 border-info">
+                    <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1 fw-bold text-dark">${c.author}</h6>
+                        <small class="text-muted"><i class="bi bi-clock me-1"></i>${c.time}</small>
+                    </div>
+                    <p class="mb-1 small text-secondary text-truncate">${c.comment}</p>
+                </a>
+            `;
+        });
+    } else {
+        list.innerHTML = '<div class="p-4 text-center text-muted">No recent activity.</div>';
+    }
+}
+
+// Funkcija koju poziva klik na zvono (ikonica)
+async function loadNotifications() {
+    const list = document.getElementById('notificationList');
+    // Prikaži spinner dok se ne učita (samo prvi put ili ako je prazno)
+    if (list.innerText.trim() === "Loading...") {
+        list.innerHTML = '<div class="p-4 text-center"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+    }
+    
+    // Pozivamo istu rutu
+    try {
+        const response = await fetch('/get-latest-comments');
+        const data = await response.json();
+        renderCommentsList(data.comments);
+    } catch (error) {
+        list.innerHTML = '<div class="p-4 text-center text-danger">Error loading comments.</div>';
+    }
+}
+
+// --- TAJMERI I DOGAĐAJI ---
+
+// 1. Proveri odmah čim se stranica učita
+document.addEventListener('DOMContentLoaded', () => {
+    checkNotificationCount();
+    
+    // 2. Postavi interval da proverava na svakih 60 sekundi (60000 ms)
+    setInterval(checkNotificationCount, 60000);
+});
+
+
+
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

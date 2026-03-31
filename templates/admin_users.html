@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Admin{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-6 fw-bold text-dark">User Management</h1>
+            <p class="text-muted">Manage account access and security flags.</p>
+        </div>
+        <a href="{{ url_for('web.admin_panel') }}" class="btn btn-outline-secondary">
+            <i class="fa-solid fa-arrow-left me-2"></i>Back to Admin
+        </a>
+    </div>
+
+    <div class="card shadow-sm border-0" style="border-radius: 15px;">
+        <div class="table-responsive p-3">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th class="text-center">Suspended</th>
+                        <th class="text-center">Force Pass Change</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm bg-light rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
+                                    <i class="fa-solid fa-user text-primary"></i>
+                                </div>
+                                <span class="fw-bold text-dark">{{ user.Name }}</span>
+                            </div>
+                        </td>
+                        <td class="text-muted">{{ user.Email }}</td>
+                        
+                        <td class="text-center">
+                            <div class="form-check form-switch d-inline-block">
+                                <input class="form-check-input custom-switch" type="checkbox" 
+                                       role="switch" {% if user.is_suspended %}checked{% endif %}
+                                       onchange="updateUser('{{ user.ID }}', {is_suspended: this.checked})">
+                            </div>
+                        </td>
+
+                        <td class="text-center">
+                            <div class="form-check form-switch d-inline-block">
+                                <input class="form-check-input custom-switch-warning" type="checkbox" 
+                                       role="switch" {% if user.need_password_change %}checked{% endif %}
+                                       onchange="updateUser('{{ user.ID }}', {need_password_change: this.checked})">
+                            </div>
+                        </td>
+
+                        <td class="text-end">
+                            <a href="{{ url_for('web.edit_user', user_id=user.id) }}" class="btn btn-sm btn-light border">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Styling for switches */
+    .custom-switch:checked {
+        background-color: #dc3545; /* Red for suspended */
+        border-color: #dc3545;
+    }
+    .custom-switch-warning:checked {
+        background-color: #ffc107; /* Yellow for pass change */
+        border-color: #ffc107;
+    }
+    .table thead th {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: #6c757d;
+        border-top: none;
+    }
+</style>
+
+<script>
+function updateUser(userId, data) {
+    fetch(`/admin/users/update-status/${userId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            // Ako imaš CSRF zaštitu, dodaj X-CSRFToken header ovde
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'success') {
+            console.log("User updated");
+            // Možeš dodati mali "toast" ovde da potvrdiš promenu
+        }
+    })
+    .catch(error => {
+        alert("Error updating user");
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .kb-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .kb-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    }
+    .doc-icon {
+        font-size: 1.5rem;
+        padding: 10px;
+        border-radius: 8px;
+        margin-right: 15px;
+    }
+    .bg-team-soft { background-color: #e8f5e9; color: #2e7d32; }
+    .bg-company-soft { background-color: #e3f2fd; color: #1565c0; }
+
+    @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+    }
+
+    .spinning {
+        animation: spin 1s linear infinite;
+        display: inline-block;
+    }
+
+    .btn-processing {
+        pointer-events: none;
+        opacity: 0.7;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="h3 mb-0 text-primary">
+                <i class="bi {{ 'bi-building' if scope == 'company' else 'bi-people-fill' }}"></i> 
+                {{ scope|capitalize }} Knowledge Base
+            </h2>
+            <p class="text-muted">Managed guidelines and documentation for your {{ scope }}.</p>
+        </div>
+        <a href="{{ url_for('web.process_knowledge', scope=scope) }}" 
+            id="sync-btn"
+            class="btn btn-outline-warning shadow-sm"
+            onclick="return startSyncProcess(this);">
+                <i class="bi bi-cpu" id="sync-icon"></i> 
+                <span id="sync-text">Sync AI Context</span>
+        </a>
+        <a href="{{ url_for('web.create_knowledge', scope=scope) }}" class="btn btn-success shadow-sm">
+            <i class="bi bi-plus-circle"></i> Add New Document
+        </a>
+    </div>
+
+    <hr class="mb-5">
+
+    <div class="row">
+        {% if documents %}
+            {% for doc in documents %}
+            {% set needs_sync = not doc.LastProcessedAt or (doc.DateLog and doc.LastProcessedAt < doc.DateLog) %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm kb-card {{ 'border-warning border-2' if needs_sync else 'border-0' }}">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="doc-icon {{ 'bg-company-soft' if scope == 'company' else 'bg-team-soft' }}">
+                                <i class="bi bi-file-earmark-text"></i>
+                            </div>
+                            <div class="overflow-hidden w-100">
+                                <div class="d-flex justify-content-between">
+                                    <h5 class="card-title text-dark mb-0 text-truncate">{{ doc.FileName }}</h5>
+                                    {% if needs_sync %}
+                                        <i class="bi bi-lightning-charge-fill text-warning" title="Sync required"></i>
+                                    {% else %}
+                                        <i class="bi bi-check-circle-fill text-success small" title="AI Synced"></i>
+                                    {% endif %}
+                                </div>
+                                <span class="badge bg-light text-muted border small">Markdown</span>
+                            </div>
+                        </div>
+                        
+                        <p class="card-text text-muted small mb-3" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                            {{ doc.Description if doc.Description else "No description provided." }}
+                        </p>
+    
+                        <div class="mt-auto border-top pt-2">
+                            <div class="d-flex justify-content-between extra-small text-muted" style="font-size: 0.75rem;">
+                                <span><i class="bi bi-pencil-square"></i> Edited: <b>{{ doc.DateLog.strftime('%d.%m.%Y %H:%M') if doc.DateLog else 'N/A' }}</b></span>
+                            </div>
+                            <div class="d-flex justify-content-between extra-small {{ 'text-warning fw-bold' if needs_sync else 'text-muted' }}" style="font-size: 0.75rem;">
+                                <span><i class="bi bi-cpu"></i> AI Synced: <b>{{ doc.LastProcessedAt.strftime('%d.%m.%Y %H:%M') if doc.LastProcessedAt else 'Never' }}</b></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer bg-light border-0 d-flex justify-content-between align-items-center py-2">
+                        <div class="btn-group shadow-sm">
+                            <a href="{{ url_for('web.view_doc', doc_id=doc.ID) }}" class="btn btn-sm btn-primary" title="View">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="{{ url_for('web.create_knowledge', scope=scope, doc_id=doc.ID) }}" class="btn btn-sm btn-outline-secondary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </div>
+    
+                        <form action="{{ url_for('web.delete_knowledge', scope=scope, doc_id=doc.ID) }}" method="POST" 
+                              onsubmit="return confirm('Are you sure?');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            {% endif %}
+    </div>
+</div>
+<script type="text/javascript">
+function startSyncProcess(element) {
+    // 1. Prvo tražimo potvrdu od korisnika
+    const confirmAction = confirm('This will update the AI memory for all documents. Depending on the number of files, it may take a minute. Continue?');
+    
+    if (!confirmAction) {
+        return false; // Prekida proces ako korisnik klikne "Cancel"
+    }
+
+    // 2. Selektujemo elemente unutar dugmeta
+    const btn = document.getElementById('sync-btn');
+    const icon = document.getElementById('sync-icon');
+    const text = document.getElementById('sync-text');
+
+    // 3. Menjamo izgled dugmeta u "Processing" stanje
+    btn.classList.add('btn-processing'); // Onemogućava ponovni klik
+    icon.classList.add('spinning');      // Pokreće animaciju ikonice
+    text.innerText = 'Processing AI...'; // Menja tekst
+
+    // 4. Dozvoljavamo Flask ruti da se izvrši
+    return true; 
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Prompt Archive{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-5 px-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-bold text-dark text-uppercase">Prompt Archive</h1>
+            <p class="text-muted small">History of all AI interactions and saved messages.</p>
+        </div>       
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-0">
+        <div class="card-body p-4">
+            <div class="table-responsive">
+                <table id="promptTable" class="table table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 15%">DATE</th>
+                            <th style="width: 35%">USER PROMPT</th>
+                            <th style="width: 35%">AI RESPONSE</th>
+                            <th style="width: 15%" class="text-center">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in prompts %}
+                        <tr>
+                            <td class="small text-muted">
+                                <strong>{{ p.CreatedDate.strftime('%Y-%m-%d') }}</strong><br>
+                                {{ p.CreatedDate.strftime('%H:%M:%S') }}
+                                <div class="mt-1"><code class="text-primary">{{ p.Model }}</code></div>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 350px;" title="{{ p.Prompt }}">
+                                    {{ p.Prompt }}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="text-truncate text-muted" style="max-width: 350px;" title="{{ p.SavedMessage }}">
+                                    {{ p.SavedMessage or 'No response saved' }}
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-primary rounded-0 px-3"
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#modal-{{ p.ID }}">
+                                    <i class="fa-eye"></i> Details
+                                </button>
+                            </td>
+                        </tr>
+
+                        <div class="modal fade" id="modal-{{ p.ID }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content border-0 shadow rounded-0">
+                                    <div class="modal-header bg-dark text-white rounded-0">
+                                        <h5 class="modal-title small fw-bold">PROMPT INSPECTOR [ID: {{ p.ID[:8] }}]</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body p-4">
+                                        <div class="row mb-4 border-bottom pb-3">
+                                            <div class="col-md-6">
+                                                <p class="mb-2 small fw-bold text-muted">CONTEXT CONFIGURATION</p>
+                                                <span class="badge rounded-0 {{ 'bg-success' if p.StaticContextIncluded else 'bg-secondary' }}">STATIC: {{ 'YES' if p.StaticContextIncluded else 'NO' }}</span>
+                                                <span class="badge rounded-0 {{ 'bg-info' if p.DynamicContextIncluded else 'bg-secondary' }}">DYNAMIC: {{ 'YES' if p.DynamicContextIncluded else 'NO' }}</span>
+                                            </div>
+                                            <div class="col-md-6 text-md-end">
+                                                <p class="mb-2 small fw-bold text-muted">ENGINE / MODEL</p>
+                                                <span class="badge bg-dark rounded-0">{{ p.Model }}</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <h6 class="fw-bold small text-uppercase">User Input:</h6>
+                                        <div class="p-3 bg-light border mb-4 rounded-0" style="max-height: 200px; overflow-y: auto; font-family: monospace;">
+                                            {{ p.Prompt }}
+                                        </div>
+
+                                        <h6 class="fw-bold small text-uppercase">AI Saved Response:</h6>
+                                        <div class="p-3 bg-white border mb-4 rounded-0" style="max-height: 200px; overflow-y: auto;">
+                                            {{ p.SavedMessage }}
+                                        </div>
+
+                                        {% if p.ChatHistory %}
+                                        <h6 class="fw-bold text-muted small text-uppercase">Raw History Stream:</h6>
+                                        <pre class="bg-dark text-success p-3 rounded-0 small" style="max-height: 150px; overflow-y: auto;">{{ p.ChatHistory }}</pre>
+                                        {% endif %}
+                                    </div>
+                                    <div class="modal-footer bg-light rounded-0">
+                                        <button type="button" class="btn btn-secondary btn-sm rounded-0" data-bs-dismiss="modal">CLOSE</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('#promptTable').DataTable({
+            "order": [[ 0, "desc" ]],
+            "pageLength": 15,
+            "language": {
+                "search": "FILTER ARCHIVE:",
+                "searchPlaceholder": "Search by keyword, model..."
+            },
+            "drawCallback": function() {
+                // Forsiranje kvadratnog oblika za DataTables generisane elemente
+                $('.dataTables_filter input').addClass('rounded-0 form-control-sm');
+                $('.dataTables_length select').addClass('rounded-0 form-control-sm');
+                $('.page-link').addClass('rounded-0');
+            }
+        });
+    });
+</script>
+
+<style>
+    /* Globalno uklanjanje zaobljenja */
+    .rounded-0 { border-radius: 0 !important; }
+    
+    .table thead th {
+        font-size: 0.75rem;
+        letter-spacing: 0.05rem;
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .dataTables_filter input {
+        width: 350px !important;
+        border: 1px solid #ced4da;
+    }
+
+    .badge {
+        font-weight: 500;
+        padding: 0.5em 0.8em;
+    }
+
+    /* Prilagođen scrollbar za modalne prozore */
+    pre::-webkit-scrollbar, div::-webkit-scrollbar {
+        width: 6px;
+    }
+    pre::-webkit-scrollbar-thumb, div::-webkit-scrollbar-thumb {
+        background: #ccc;
+    }
+</style>
+{% endblock %}
