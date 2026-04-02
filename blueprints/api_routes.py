@@ -19,7 +19,7 @@ from models import (
 from openai import OpenAI
 from config import Config
 from crud_factory import create_crud_blueprint
-import struct1
+
 
 
 api_bp = Blueprint('api', __name__, url_prefix='/API')

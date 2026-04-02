@@ -30,18 +30,7 @@
 
 <script>
 
-const iframex = document.getElementById("browserFrame");
 
-iframex.addEventListener("load", () => {
-    const doc = iframex.contentDocument || iframex.contentWindow.document;
-    doc.addEventListener("click", (e) => {
-        const link = e.target.closest("a");
-        if (link && link.href) {
-            e.preventDefault();  // spreči default
-            iframex.src = link.href;  // otvori u iframe-u
-        }
-    });
-});
 
 window.AI_CONTEXT="";
 

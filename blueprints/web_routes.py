@@ -19,9 +19,6 @@ import json
 # Uključivanje pomoćnih funkcija
 from blueprints.api_routes import commit_db # Koristimo commit_db definisanu u API rutama
 
-# Pretpostavlja se da su 'struct1' i 'util' definisani negde.
-# Za potrebe refaktorisanja, pretpostavljamo da su importi iz originalnog fajla.
-import struct1
 from util import handle_error # Pretpostavlja se da je handle_error definisan u util.py
 
 web_bp = Blueprint('web', __name__)
@@ -789,14 +786,7 @@ def new_task():
     # Uvek se vrati na overview stranu
     return redirect(url_for("web.tasks_overview"))
     
-@web_bp.route("/delete_task/<int:task_id>", methods=['GET','POST'])
-def delete_task(task_id):
-    try:        
-        struct1.delete_task(task_id)
-                        
-    except Exception as e:
-        handle_error(e, db, friendly_message="Unable to delete task.")
-    return redirect(url_for('web.tasks_overview'))
+
 
 
 
@@ -1479,40 +1469,7 @@ def kanban():
                            selected_member_id=selected_member_id)
 
 
-@web_bp.route('/new_board', methods=["POST"])
-def new_board():
-    board_name = request.form.get('board_name')
-    kanban_data = struct1.kanban_data
-    if not board_name:
-        return "Board name is required", 400
-    
-    # Kreiraj novi board...
-    new_board_id = f"board{len(kanban_data['boards']) + 1}"
-    new_board = {
-    "id": new_board_id,  # ili generiši dinamički ID
-    "name": board_name,
-    "lists": [
-        {
-            "id": "list1",
-            "name": "To Do",
-            "cards": [{"id": "card1", "title": "Demo Task", "description": "Description for demo task"}]
-        },
-        {
-            "id": "list2", 
-            "name": "In Progress",
-            "cards": []
-        },
-        {
-            "id": "list3",
-            "name": "Done",
-            "cards": []
-        }
-    ]
-    }
-    kanban_data["boards"].append(new_board)    
-    
-    # Redirect na novi board
-    return redirect(f'/kanban/{new_board_id}')
+
 
 """ @web_bp.route("/browser2",methods=["GET","POST"])
 def browser2():
@@ -1619,7 +1576,7 @@ def absence_matrix():
         
         # Ako struct1.holidays_set sadrži fiksne praznike, proveri da li su za tu godinu
         # Idealno bi bilo da imaš funkciju get_public_holidays(selected_year)
-        import struct1
+        #import struct1
         holidays_set = struct1.holidays_set 
     except Exception as e:
         print(f"Greška pri učitavanju podataka: {e}")
@@ -1724,16 +1681,7 @@ def delete_absence(absence_id):
         print(f"Delete Error: {e}")
         return {"status": "error", "message": str(e)}, 500
 
-@web_bp.route('/dashboard', methods=['GET'])
-def dashboard():
-    data = struct1.dashboardList
-    print('---my data--')
-    print(data)
-    for item in data:
-        fdesc = item.get("functionCallJsonDesc", {})
-        fdesc.setdefault("arguments", {})   # <<< KLJUČNO
-        item["functionCallJsonDesc"] = fdesc
-    return render_template('dashboard.html', items=data)
+
 
 
 @web_bp.route('/team-knowledge')

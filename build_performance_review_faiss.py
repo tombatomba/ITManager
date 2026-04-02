@@ -30,7 +30,7 @@ for filename in os.listdir(KNOWLEDGE_DIR):
                 metadata.append({
                     "file": filename,
                     "topic": "company_info",
-                    "content": content   # ✅ OBAVEZNO
+                    "content": content   
                 })
 
 if not texts:

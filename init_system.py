@@ -11,7 +11,7 @@ from flask import Flask
 
 app = Flask(__name__)
 # OBAVEZNO: Ovde postavi svoj konekcioni string
-app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc://bane:Administrator.11@.\\SQLEXPRESS/ElPatron?driver=ODBC+Driver+17+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
+app.config['SQLALCHEMY_DATABASE_URI'] = "mssql+pyodbc://bane:Administrator.12@.\\SQLEXPRESS/ElPatron?driver=ODBC+Driver+17+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db.init_app(app)
 

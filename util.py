@@ -1,7 +1,7 @@
 import traceback, json
 from flask import flash, session, redirect,url_for
 import logging
-import struct1
+
 from functools import wraps
 import tiktoken,bs4
 
@@ -464,3 +464,27 @@ def audit_xls(
     }
 
     return findings
+
+def get_model_config(model_name):
+    import config
+    """
+    Pronalazi i vraća ceo slog (dict) za traženi model iz price_list.
+    Vraća None ako model ne postoji.
+    """
+    # price_list je tvoja lista iz config fajla
+    # Ako je u drugoj klasi, koristi self.price_list ili AIConfig.price_list
+    price_list = config.price_list
+    result = next((item for item in price_list if item['model'] == model_name), None)
+    
+    """
+    model_data = get_model_config('chatgpt-4o-latest')
+    if model_data:
+        in_p = model_data['input_price_per_1k']
+        out_p = model_data['output_price_per_1k']
+        provider = model_data['provider']
+        print(f"Pronađen {model_data['model']} (Provider: {provider})")
+    else:
+        print("Model nije pronađen u cenovniku.")
+    """
+
+    

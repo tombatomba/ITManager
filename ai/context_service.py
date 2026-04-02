@@ -1,12 +1,13 @@
 import faiss
 import numpy as np
+from AIConfig import AIConfig
 from openai import OpenAI
 from config import Config
 from models import CompanyKnowledge, KnowledgeEmbedding, TeamKnowledge, db # Uvezi tvoj novi model
 
 class ContextService:
     def __init__(self, team_id=None, company_id=None):
-        self.client = OpenAI(api_key=Config.OPENAI_API_KEY)
+        self.client = OpenAI(api_key=AIConfig.get('OPENAI_API_KEY'))
         self.texts = []
         self.metadata = []
         

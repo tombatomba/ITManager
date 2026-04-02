@@ -1,0 +1,16 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logovi
+*.log
+
+# FAISS i binarni podaci
+faiss/*.index
+faiss/*.npy
+
+# Local environment
+.env
+venv/

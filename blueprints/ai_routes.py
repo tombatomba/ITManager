@@ -13,7 +13,6 @@ from ai.context_service import ContextService
 from ai.advisor import AIAdvisor
 import json, time
 import config
-import struct1
 import util
 
 ai_bp = Blueprint("ai", __name__)
@@ -62,7 +61,7 @@ def ask_ai():
     target_temp = all_temps.get(model_name, 0.7)
     print('DEBUG: all temps',all_temps)
     print()
-    advisor = AIAdvisor(client=cli,myModel=model_name,temperature=target_temp)
+    advisor = AIAdvisor(client=cli,myModel=model_name,temperature=target_temp,anonim=True)   #ovde dodajem anonimizator
 
     print('DEBUG: model_temp:',target_temp)
     # Preuzimanje podataka iz request-a
@@ -117,7 +116,7 @@ def ask_ai():
     messages = [
         {
             "role": "system", 
-            "content": "You are an IT Director assistant. Use the provided Knowledge Base and Page Context to give accurate answers."
+            "content": "You are Manager assistant. Use the provided Knowledge Base and Page Context to give accurate answers. IMPORTANT: Maintain all [ENTITY_XXX] or [GLOBAL_XXX] tags in your response exactly as they appear. Do not translate or modify them."
         },
         {"role": "system", "content": f"KNOWLEDGE BASE (Global):\n{context}"},
         {"role": "system", "content": f"PAGE CONTEXT (Active context):\n{context2}"}
@@ -148,7 +147,9 @@ def ask_ai():
 
     # 5️⃣ POZIV ADVISOR-A I GENERISANJE ODGOVORA
     try:
-        answer_response = advisor.client.chat_completions_create(**kwargs)
+        #answer_response = advisor.client.chat_completions_create(**kwargs) # ovu liniju menjam sa obmotanom advisor metodom
+        msgs = kwargs.pop("messages")         
+        answer_response = advisor.get_safe_response(messages=msgs, **kwargs)            
         msg = answer_response.choices[0].message
 
         if hasattr(msg, "function_call") and msg.function_call:
